@@ -4,7 +4,6 @@ package ethereum
 import (
 	"fmt"
 	"math/big"
-	"strings"
 
 	"github.com/umbracle/ethgo"
 	"github.com/umbracle/ethgo/jsonrpc"
@@ -102,28 +101,25 @@ func (c *Client) GetBlockByNumber(number ethgo.BlockNumber) (*ethgo.Block, error
 	return c.client.Eth().GetBlockByNumber(number, true)
 }
 
-// newTransaction creates a new ethgo transaction.
-func (c *Client) newTransaction(tx Transaction) (*ethgo.Transaction, error) {
-	t := &ethgo.Transaction{}
-	to := ethgo.HexToAddress(strings.ToLower(tx.To))
-
-	t.To = &to
-	t.Value = big.NewInt(tx.Value)
-	t.Gas = tx.Gas
-	t.GasPrice = tx.GasPrice
-	t.Nonce = tx.Nonce
-	t.Input = tx.Input
-	t.Type = ethgo.TransactionLegacy
-	t.ChainID = c.chainID
-
-	return t, nil
+// GetNonce returns the nonce for the given address.
+func (c *Client) GetNonce(address string) (uint64, error) {
+	return c.client.Eth().GetNonce(ethgo.HexToAddress(address), ethgo.Latest)
 }
 
 // SendTransaction signs and sends transaction to the network.
 func (c *Client) SendTransaction(tx Transaction) (ethgo.Hash, error) {
-	t, err := c.newTransaction(tx)
-	if err != nil {
-		return ethgo.Hash{}, err
+	to := ethgo.HexToAddress(tx.To)
+
+	t := &ethgo.Transaction{
+		From:     ethgo.HexToAddress(tx.From),
+		To:       &to,
+		Value:    big.NewInt(tx.Value),
+		Gas:      tx.Gas,
+		GasPrice: tx.GasPrice,
+		Nonce:    tx.Nonce,
+		Input:    tx.Input,
+		Type:     ethgo.TransactionLegacy,
+		ChainID:  c.chainID,
 	}
 
 	// gas, err := c.client.Eth().EstimateGas(&ethgo.CallMsg{
@@ -150,7 +146,6 @@ func (c *Client) SendTransaction(tx Transaction) (ethgo.Hash, error) {
 	}
 	st.Hash = h
 
-	fmt.Println("sending tx", st.From.String(), st.To.String(), st.Value.String(), st.Gas, st.GasPrice, st.Nonce, st.ChainID, st.Type)
 	trlp, err := st.MarshalRLPTo(nil)
 	if err != nil {
 		return ethgo.Hash{}, fmt.Errorf("failed to marshal tx: %e", err)
