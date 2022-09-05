@@ -5,6 +5,8 @@ const client = eth.newClient({
     chainID: 1256
 });
 
+var nonce = client.getNonce("0x85da99c8a7c2c95964c8efd687e95e632fc533d6");
+
 export default function () {
   const gas = client.gasPrice();
   console.log(`gas => ${gas}`);
@@ -14,16 +16,13 @@ export default function () {
   const bal = client.getBalance("0x85da99c8a7c2c95964c8efd687e95e632fc533d6", block.number);
   console.log(`bal => ${bal}`);
 
-  const nonce = client.getNonce("0x85da99c8a7c2c95964c8efd687e95e632fc533d6");
-
   const tx = {
-    from: "0x85da99c8a7c2c95964c8efd687e95e632fc533d6",
     to: "0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
     value: 0x38d7ea4c68000,
-    gas: 0x5208,
     gas_price: gas,
     nonce: nonce,
     };
 
-  client.sendTransaction(tx);
+  nonce = nonce + 1;
+  console.log(client.sendTransaction(tx));
 }

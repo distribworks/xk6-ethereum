@@ -2,6 +2,7 @@
 package ethereum
 
 import (
+	"encoding/hex"
 	"fmt"
 	"math/big"
 
@@ -53,6 +54,10 @@ func (e *Eth) NewClient(options Options) (*Client, error) {
 		options.URL = "http://localhost:8545"
 	}
 
+	if options.PrivateKey == "" {
+		options.PrivateKey = privateKey
+	}
+
 	var wa *wallet.Key
 	if options.Mnemonic != "" {
 		w, err := wallet.NewWalletFromMnemonic(options.Mnemonic)
@@ -61,13 +66,11 @@ func (e *Eth) NewClient(options Options) (*Client, error) {
 		}
 		wa = w
 	} else if options.PrivateKey != "" {
-		w, err := wallet.NewWalletFromPrivKey([]byte(options.PrivateKey))
+		pk, err := hex.DecodeString(options.PrivateKey)
 		if err != nil {
 			return nil, err
 		}
-		wa = w
-	} else {
-		w, err := wallet.NewWalletFromPrivKey([]byte(privateKey))
+		w, err := wallet.NewWalletFromPrivKey(pk)
 		if err != nil {
 			return nil, err
 		}
@@ -107,14 +110,25 @@ func (c *Client) GetNonce(address string) (uint64, error) {
 }
 
 // SendTransaction signs and sends transaction to the network.
-func (c *Client) SendTransaction(tx Transaction) (ethgo.Hash, error) {
+func (c *Client) SendTransaction(tx Transaction) (string, error) {
 	to := ethgo.HexToAddress(tx.To)
 
-	t := &ethgo.Transaction{
-		From:     ethgo.HexToAddress(tx.From),
+	gas, err := c.client.Eth().EstimateGas(&ethgo.CallMsg{
+		From:     c.w.Address(),
 		To:       &to,
 		Value:    big.NewInt(tx.Value),
-		Gas:      tx.Gas,
+		Data:     tx.Input,
+		GasPrice: tx.GasPrice,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to estimate gas: %e", err)
+	}
+
+	t := &ethgo.Transaction{
+		From:     c.w.Address(),
+		To:       &to,
+		Value:    big.NewInt(tx.Value),
+		Gas:      gas,
 		GasPrice: tx.GasPrice,
 		Nonce:    tx.Nonce,
 		Input:    tx.Input,
@@ -122,36 +136,19 @@ func (c *Client) SendTransaction(tx Transaction) (ethgo.Hash, error) {
 		ChainID:  c.chainID,
 	}
 
-	// gas, err := c.client.Eth().EstimateGas(&ethgo.CallMsg{
-	// 	From:     ethgo.HexToAddress(tx.From),
-	// 	To:       t.To,
-	// 	Value:    t.Value,
-	// 	Data:     t.Input,
-	// 	GasPrice: t.GasPrice,
-	// })
-	// if err != nil {
-	// 	return ethgo.Hash{}, fmt.Errorf("failed to estimate gas: %e", err)
-	// }
-	//t.Gas = gas
+	t.Gas = gas
 
 	s := wallet.NewEIP155Signer(t.ChainID.Uint64())
 	st, err := s.SignTx(t, c.w)
 	if err != nil {
-		return ethgo.Hash{}, err
+		return "", err
 	}
-
-	h, err := st.GetHash()
-	if err != nil {
-		return ethgo.Hash{}, err
-	}
-	st.Hash = h
 
 	trlp, err := st.MarshalRLPTo(nil)
 	if err != nil {
-		return ethgo.Hash{}, fmt.Errorf("failed to marshal tx: %e", err)
+		return "", fmt.Errorf("failed to marshal tx: %e", err)
 	}
-	j, _ := st.MarshalJSON()
-	fmt.Println(string(j))
 
-	return c.client.Eth().SendRawTransaction(trlp)
+	h, err := c.client.Eth().SendRawTransaction(trlp)
+	return h.String(), err
 }
