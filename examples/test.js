@@ -1,7 +1,7 @@
 import eth from 'k6/x/ethereum';
 
 const client = eth.newClient({
-    url: 'http://localhost:8541',
+    url: 'http://localhost:8545',
     // You can also specify a private key here
     // privateKey: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
     // or a mnemonic
@@ -22,7 +22,8 @@ export function setup() {
       to: root_address,
       value: 100000000000000000000,
     });
-    client.waitForTransactionReceipt(txh)
+    const rcp = client.waitForTransactionReceipt(txh)
+    console.log(`txh => ${JSON.stringify(rcp)}`);
   }
 
   const lta = client.deployLoadTester();
@@ -40,7 +41,7 @@ export default function (data) {
   
   const block = client.getBlockByNumber(0);
   
-  const bal = client.getBalance("0x85da99c8a7c2c95964c8efd687e95e632fc533d6", block.number);
+  const bal = client.getBalance(root_address, block.number);
   console.log(`bal => ${bal}`);
   
   const tx = {

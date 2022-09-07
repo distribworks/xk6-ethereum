@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/distribworks/xk6-ethereum/contracts"
 	"github.com/umbracle/ethgo"
@@ -202,6 +203,7 @@ func (c *Client) WaitForTransactionReceipt(hash string) (*Receipt, error) {
 		if receipt != nil {
 			return receipt, nil
 		}
+		time.Sleep(100 * time.Millisecond)
 	}
 }
 
