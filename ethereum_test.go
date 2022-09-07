@@ -1,60 +1,53 @@
 package ethereum
 
 import (
-	"math/big"
-	"reflect"
 	"testing"
 
-	"github.com/umbracle/ethgo"
-	"github.com/umbracle/ethgo/wallet"
+	"github.com/distribworks/xk6-ethereum/contracts"
 )
 
-func Test_newTransaction(t *testing.T) {
-	testAdd := ethgo.HexToAddress("0x0000000000000000000000000000000000000000")
+func setupClient() (*Client, error) {
+	// Create a new client
+	eth := Eth{}
+	return eth.NewClient(Options{
+		URL:        "http://localhost:8541",
+		PrivateKey: "42b6e34dc21598a807dc19d7784c71b2a7a01f6480dc6f58258f78e539f1a1fa",
+	})
+}
 
-	type args struct {
-		tx *Transaction
-	}
-	tests := []struct {
-		name string
-		args args
-		want *ethgo.Transaction
-	}{
-		{
-			"test conversion",
-			args{
-				&Transaction{
-					From:     "0x0000000000000000000000000000000000000000",
-					To:       "0x0000000000000000000000000000000000000000",
-					Input:    []byte{},
-					GasPrice: 0,
-					Gas:      0,
-					Value:    0,
-					Nonce:    0,
-				}},
-			&ethgo.Transaction{
-				From:     ethgo.HexToAddress("0x0000000000000000000000000000000000000000"),
-				To:       &testAdd,
-				Input:    []byte{},
-				GasPrice: 0,
-				Gas:      0,
-				Value:    big.NewInt(0),
-				Nonce:    0,
-				Type:     ethgo.TransactionLegacy,
-			},
-		},
+func Test_DeployLoadTester(t *testing.T) {
+	// Create a new client
+	client, err := setupClient()
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := &Client{}
-			if got, _ := c.newTransaction(*tt.args.tx); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("newTransaction() = %v, want %v", got, tt.want)
+	// Deploy the contract
+	_, err = client.DeployLoadTester()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
 
-				w, _ := wallet.NewWalletFromPrivKey([]byte(privateKey))
-				s := wallet.NewEIP155Signer(1256)
-				_, _ = s.SignTx(tt.want, w)
-			}
-		})
+func Test_EstimateGas(t *testing.T) {
+	client, err := setupClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	gas, err := client.GasPrice()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Deploy the contract
+	_, err = client.EstimateGas(Transaction{
+		// To:       "0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+		Value:    0,
+		Input:    contracts.LoadTesterBin(),
+		GasPrice: gas,
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }

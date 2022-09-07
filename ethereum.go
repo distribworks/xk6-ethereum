@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/distribworks/xk6-ethereum/contracts"
 	"github.com/umbracle/ethgo"
+	"github.com/umbracle/ethgo/contract"
 	"github.com/umbracle/ethgo/jsonrpc"
 	"github.com/umbracle/ethgo/wallet"
 	"go.k6.io/k6/js/modules"
@@ -20,33 +22,6 @@ func init() {
 	eth := Eth{}
 
 	modules.Register("k6/x/ethereum", &eth)
-}
-
-type Eth struct{}
-
-type Client struct {
-	w       *wallet.Key
-	client  *jsonrpc.Client
-	chainID *big.Int
-}
-
-// Options defines configuration options for the client.
-type Options struct {
-	URL        string
-	Mnemonic   string
-	PrivateKey string
-}
-
-type Transaction struct {
-	From     string
-	To       string
-	Input    []byte
-	GasPrice uint64
-	Gas      uint64
-	Value    int64
-	Nonce    uint64
-	// eip-2930 values
-	ChainId int64
 }
 
 func (e *Eth) NewClient(options Options) (*Client, error) {
@@ -109,19 +84,33 @@ func (c *Client) GetNonce(address string) (uint64, error) {
 	return c.client.Eth().GetNonce(ethgo.HexToAddress(address), ethgo.Latest)
 }
 
+// EstimateGas returns the estimated gas for the given transaction.
+func (c *Client) EstimateGas(tx Transaction) (uint64, error) {
+	to := ethgo.HexToAddress(tx.To)
+
+	msg := &ethgo.CallMsg{
+		From:     c.w.Address(),
+		To:       &to,
+		Value:    nil,
+		Data:     tx.Input,
+		GasPrice: tx.GasPrice,
+	}
+
+	gas, err := c.client.Eth().EstimateGas(msg)
+	if err != nil {
+		return 0, fmt.Errorf("failed to estimate gas: %e", err)
+	}
+
+	return gas, nil
+}
+
 // SendTransaction signs and sends transaction to the network.
 func (c *Client) SendTransaction(tx Transaction) (string, error) {
 	to := ethgo.HexToAddress(tx.To)
 
-	gas, err := c.client.Eth().EstimateGas(&ethgo.CallMsg{
-		From:     c.w.Address(),
-		To:       &to,
-		Value:    big.NewInt(tx.Value),
-		Data:     tx.Input,
-		GasPrice: tx.GasPrice,
-	})
+	gas, err := c.EstimateGas(tx)
 	if err != nil {
-		return "", fmt.Errorf("failed to estimate gas: %e", err)
+		return "", err
 	}
 
 	t := &ethgo.Transaction{
@@ -151,4 +140,105 @@ func (c *Client) SendTransaction(tx Transaction) (string, error) {
 
 	h, err := c.client.Eth().SendRawTransaction(trlp)
 	return h.String(), err
+}
+
+// GetTransactionReceipt returns the transaction receipt for the given transaction hash.
+func (c *Client) GetTransactionReceipt(hash string) (*Receipt, error) {
+	r, err := c.client.Eth().GetTransactionReceipt(ethgo.HexToHash(hash))
+	if err != nil {
+		return nil, err
+	}
+
+	if r != nil {
+		return &Receipt{
+			TransactionHash:   r.TransactionHash.String(),
+			TransactionIndex:  r.TransactionIndex,
+			ContractAddress:   r.ContractAddress.String(),
+			BlockHash:         r.BlockHash.String(),
+			From:              r.From.String(),
+			BlockNumber:       r.BlockNumber,
+			GasUsed:           r.GasUsed,
+			CumulativeGasUsed: r.CumulativeGasUsed,
+			LogsBloom:         r.LogsBloom,
+			Status:            r.Status,
+		}, nil
+	}
+
+	return nil, fmt.Errorf("not found")
+}
+
+// WaitForTransactionReceipt waits for the transaction receipt for the given transaction hash.
+func (c *Client) WaitForTransactionReceipt(hash string) (*Receipt, error) {
+	for {
+		receipt, err := c.GetTransactionReceipt(hash)
+		if err != nil {
+			if err.Error() != "not found" {
+				return nil, err
+			}
+		}
+		if receipt != nil {
+			return receipt, nil
+		}
+	}
+}
+
+// DeployLoadTester deploys the load tester contract.
+func (c *Client) DeployLoadTester() (string, error) {
+	opts := []contract.ContractOption{
+		contract.WithJsonRPC(c.client.Eth()),
+		contract.WithSender(c.w),
+	}
+
+	// deploy the contract
+	txn, err := contracts.DeployLoadTester(c.client, c.w.Address(), []interface{}{}, opts...)
+	if err != nil {
+		return "", err
+	}
+
+	err = txn.Do()
+	if err != nil {
+		return "", err
+	}
+
+	receipt, err := txn.Wait()
+	if err != nil {
+		return "", err
+	}
+
+	return receipt.ContractAddress.String(), nil
+}
+
+// CallLoadTester calls as specific function of the load tester contract.
+func (c *Client) CallLoadTester(contractAddress string, function string, args ...interface{}) (string, error) {
+	opts := []contract.ContractOption{
+		contract.WithJsonRPC(c.client.Eth()),
+		contract.WithSender(c.w),
+	}
+
+	// deploy the contract
+	lt := contracts.NewLoadTester(ethgo.HexToAddress(contractAddress), opts...)
+
+	var txn contract.Txn
+	var err error
+	switch function {
+	case "inc":
+		txn, err = lt.Inc()
+		if err != nil {
+			return "", err
+		}
+	default:
+		return "", fmt.Errorf("unknown function: %s", function)
+	}
+
+	err = txn.Do()
+	if err != nil {
+		return "", err
+	}
+
+	receipt, err := txn.Wait()
+	if err != nil {
+		return "", err
+	}
+
+	return receipt.TransactionHash.String(), nil
 }
