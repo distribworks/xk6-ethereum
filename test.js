@@ -2,16 +2,29 @@ import eth from 'k6/x/ethereum';
 
 const client = eth.newClient({
     url: 'http://localhost:8541',
-    chainID: 1256
     // You can also specify a private key here
     // privateKey: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
     // or a mnemonic
     // mnemonic: 'my mnemonic'
 });
 
-var nonce = client.getNonce("0x85da99c8a7c2c95964c8efd687e95e632fc533d6");
+// You can use an existing account
+const root_address = "0x85da99c8a7c2c95964c8efd687e95e632fc533d6"
+var nonce = client.getNonce(root_address);
 
 export function setup() {
+  const accounts = client.accounts();
+  // If there's not accounts we are not running in dev mode
+  if (accounts.length != 0) {
+    // Transfer some funds from the coinbase address to the test account
+    const txh = client.sendTransaction({
+      from: accounts[0],
+      to: root_address,
+      value: 100000000000000000000,
+    });
+    client.waitForTransactionReceipt(txh)
+  }
+
   const lta = client.deployLoadTester();
   console.log("Load tester deployed at: " + lta);
 
@@ -32,18 +45,18 @@ export default function (data) {
   
   const tx = {
     to: "0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
-    value: 0x38d7ea4c68000,
+    value: 1000000000000000000,
     gas_price: gas,
     nonce: nonce,
   };
   
-  const txh = client.sendTransaction(tx)
+  const txh = client.sendRawTransaction(tx)
   console.log("tx hash => " + txh);
-  const receipt = client.waitForTransactionReceipt(txh)
-  console.log("tx block hash => " + receipt.block_hash);
+  // const receipt = client.waitForTransactionReceipt(txh)
+  // console.log("tx block hash => " + receipt.block_hash);
   nonce = nonce + 1;
 
-  const f = client.callLoadTester(data.lta, "inc")
-  nonce = nonce + 1;
-  console.log("call inc => " + f);
+  // const f = client.callLoadTester(data.lta, "inc")
+  // nonce = nonce + 1;
+  // console.log("call inc => " + f);
 }

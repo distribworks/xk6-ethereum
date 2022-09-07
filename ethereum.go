@@ -104,8 +104,31 @@ func (c *Client) EstimateGas(tx Transaction) (uint64, error) {
 	return gas, nil
 }
 
-// SendTransaction signs and sends transaction to the network.
+// SendTransaction sends a transaction to the network.
 func (c *Client) SendTransaction(tx Transaction) (string, error) {
+	to := ethgo.HexToAddress(tx.To)
+
+	if tx.Gas == 0 {
+		tx.Gas = 21000
+	}
+	if tx.GasPrice == 0 {
+		tx.GasPrice = 5242880
+	}
+
+	t := &ethgo.Transaction{
+		From:     ethgo.HexToAddress(tx.From),
+		To:       &to,
+		Value:    big.NewInt(tx.Value),
+		Gas:      tx.Gas,
+		GasPrice: tx.GasPrice,
+	}
+
+	h, err := c.client.Eth().SendTransaction(t)
+	return h.String(), err
+}
+
+// SendRawTransaction signs and sends transaction to the network.
+func (c *Client) SendRawTransaction(tx Transaction) (string, error) {
 	to := ethgo.HexToAddress(tx.To)
 
 	gas, err := c.EstimateGas(tx)
@@ -241,4 +264,19 @@ func (c *Client) CallLoadTester(contractAddress string, function string, args ..
 	}
 
 	return receipt.TransactionHash.String(), nil
+}
+
+// Accounts returns a list of addresses owned by client. This endpoint is not enabled in infrastructure providers.
+func (c *Client) Accounts() ([]string, error) {
+	accounts, err := c.client.Eth().Accounts()
+	if err != nil {
+		return nil, err
+	}
+
+	addresses := make([]string, len(accounts))
+	for i, a := range accounts {
+		addresses[i] = a.String()
+	}
+
+	return addresses, nil
 }

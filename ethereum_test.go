@@ -10,7 +10,7 @@ func setupClient() (*Client, error) {
 	// Create a new client
 	eth := Eth{}
 	return eth.NewClient(Options{
-		URL:        "http://localhost:8541",
+		URL:        "http://localhost:8545",
 		PrivateKey: "42b6e34dc21598a807dc19d7784c71b2a7a01f6480dc6f58258f78e539f1a1fa",
 	})
 }
