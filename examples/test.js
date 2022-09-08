@@ -1,7 +1,8 @@
 import eth from 'k6/x/ethereum';
+import { utils } from "https://cdn.ethers.io/lib/ethers-5.6.umd.min.js"
 
 const client = eth.newClient({
-    url: 'http://localhost:8545',
+    url: 'http://localhost:8541',
     // You can also specify a private key here
     // privateKey: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
     // or a mnemonic
@@ -16,14 +17,17 @@ export function setup() {
   const accounts = client.accounts();
   // If there's not accounts we are not running in dev mode
   if (accounts.length != 0) {
-    // Transfer some funds from the coinbase address to the test account
-    const txh = client.sendTransaction({
-      from: accounts[0],
-      to: root_address,
-      value: 100000000000000000000,
-    });
-    const rcp = client.waitForTransactionReceipt(txh)
-    console.log(`txh => ${JSON.stringify(rcp)}`);
+    // Transfer some funds from the coinbase address to the test account if needed
+    const bal = client.getBalance(root_address, client.blockNumber());
+    if (bal < utils.parseEther("1000")) {
+      const txh = client.sendTransaction({
+        from: accounts[0],
+        to: root_address,
+        value: utils.parseEther("1000"),
+      });
+      const rcp = client.waitForTransactionReceipt(txh)
+      console.log(`txh => ${JSON.stringify(rcp)}`);
+    }
   }
 
   const lta = client.deployLoadTester();
@@ -38,15 +42,13 @@ nonce = nonce + 1;
 export default function (data) {
   const gas = client.gasPrice();
   console.log(`gas => ${gas}`);
-  
-  const block = client.getBlockByNumber(0);
-  
-  const bal = client.getBalance(root_address, block.number);
+
+  const bal = client.getBalance(root_address, client.blockNumber());
   console.log(`bal => ${bal}`);
   
   const tx = {
     to: "0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
-    value: 1000000000000000000,
+    value: utils.parseEther("1"),
     gas_price: gas,
     nonce: nonce,
   };

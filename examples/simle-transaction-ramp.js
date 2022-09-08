@@ -45,8 +45,7 @@ export function setup() {
 }
 
 export default function (data) {
-  const block = client.getBlockByNumber(0);
-  const bal = client.getBalance(root_address, block.number);
+  const bal = client.getBalance(root_address, client.blockNumber());
   console.log(`bal => ${bal}`);
   
   const gas = client.gasPrice();

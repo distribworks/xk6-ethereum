@@ -75,6 +75,11 @@ func (c *Client) GetBalance(address string, blockNumber ethgo.BlockNumber) (uint
 	return b.Uint64(), err
 }
 
+// BlockNumber returns the current block number.
+func (c *Client) BlockNumber() (uint64, error) {
+	return c.client.Eth().BlockNumber()
+}
+
 // GetBlockByNumber returns the block with the given block number.
 func (c *Client) GetBlockByNumber(number ethgo.BlockNumber) (*ethgo.Block, error) {
 	return c.client.Eth().GetBlockByNumber(number, true)
