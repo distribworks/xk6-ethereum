@@ -97,7 +97,7 @@ func (c *Client) EstimateGas(tx Transaction) (uint64, error) {
 	msg := &ethgo.CallMsg{
 		From:     c.w.Address(),
 		To:       &to,
-		Value:    nil,
+		Value:    big.NewInt(tx.Value),
 		Data:     tx.Input,
 		GasPrice: tx.GasPrice,
 	}
