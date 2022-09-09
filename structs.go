@@ -1,27 +1,5 @@
 package ethereum
 
-import (
-	"math/big"
-
-	"github.com/umbracle/ethgo/jsonrpc"
-	"github.com/umbracle/ethgo/wallet"
-)
-
-type Eth struct{}
-
-type Client struct {
-	w       *wallet.Key
-	client  *jsonrpc.Client
-	chainID *big.Int
-}
-
-// Options defines configuration options for the client.
-type Options struct {
-	URL        string
-	Mnemonic   string
-	PrivateKey string
-}
-
 type Transaction struct {
 	From     string
 	To       string

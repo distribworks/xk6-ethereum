@@ -2,7 +2,6 @@
 package ethereum
 
 import (
-	"encoding/hex"
 	"fmt"
 	"math/big"
 	"time"
@@ -13,61 +12,26 @@ import (
 	"github.com/umbracle/ethgo/jsonrpc"
 	"github.com/umbracle/ethgo/wallet"
 	"go.k6.io/k6/js/modules"
+	"go.k6.io/k6/metrics"
 )
 
-const (
-	privateKey = "42b6e34dc21598a807dc19d7784c71b2a7a01f6480dc6f58258f78e539f1a1fa"
-)
-
-func init() {
-	eth := Eth{}
-
-	modules.Register("k6/x/ethereum", &eth)
+type Client struct {
+	w       *wallet.Key
+	client  *jsonrpc.Client
+	chainID *big.Int
+	vu      modules.VU
+	metrics ethMetrics
 }
 
-func (e *Eth) NewClient(options Options) (*Client, error) {
-	if options.URL == "" {
-		options.URL = "http://localhost:8545"
-	}
-
-	if options.PrivateKey == "" {
-		options.PrivateKey = privateKey
-	}
-
-	var wa *wallet.Key
-	if options.Mnemonic != "" {
-		w, err := wallet.NewWalletFromMnemonic(options.Mnemonic)
-		if err != nil {
-			return nil, err
-		}
-		wa = w
-	} else if options.PrivateKey != "" {
-		pk, err := hex.DecodeString(options.PrivateKey)
-		if err != nil {
-			return nil, err
-		}
-		w, err := wallet.NewWalletFromPrivKey(pk)
-		if err != nil {
-			return nil, err
-		}
-		wa = w
-	}
-
-	c, err := jsonrpc.NewClient(options.URL)
-	if err != nil {
-		return nil, err
-	}
-
-	cid, err := c.Eth().ChainID()
-	if err != nil {
-		return nil, err
-	}
-
-	return &Client{client: c, w: wa, chainID: cid}, nil
+func (c *Client) Exports() modules.Exports {
+	return modules.Exports{}
 }
 
 func (c *Client) GasPrice() (uint64, error) {
-	return c.client.Eth().GasPrice()
+	t := time.Now()
+	g, err := c.client.Eth().GasPrice()
+	c.reportMetricsFromStats("gas_price", time.Since(t))
+	return g, err
 }
 
 func (c *Client) GetBalance(address string, blockNumber ethgo.BlockNumber) (uint64, error) {
@@ -198,6 +162,7 @@ func (c *Client) GetTransactionReceipt(hash string) (*Receipt, error) {
 
 // WaitForTransactionReceipt waits for the transaction receipt for the given transaction hash.
 func (c *Client) WaitForTransactionReceipt(hash string) (*Receipt, error) {
+	now := time.Now()
 	for {
 		receipt, err := c.GetTransactionReceipt(hash)
 		if err != nil {
@@ -206,6 +171,17 @@ func (c *Client) WaitForTransactionReceipt(hash string) (*Receipt, error) {
 			}
 		}
 		if receipt != nil {
+			// Report metrics
+			metrics.PushIfNotDone(c.vu.Context(), c.vu.State().Samples, metrics.ConnectedSamples{
+				Samples: []metrics.Sample{
+					{
+						Metric: c.metrics.TimeToMine,
+						Tags:   metrics.NewSampleTags(map[string]string{"call": "get_transaction_receipt"}),
+						Value:  float64(time.Since(now) / time.Millisecond),
+						Time:   now,
+					},
+				},
+			})
 			return receipt, nil
 		}
 		time.Sleep(100 * time.Millisecond)

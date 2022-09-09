@@ -1,18 +1,29 @@
 package ethereum
 
 import (
+	"encoding/hex"
 	"testing"
 
 	"github.com/distribworks/xk6-ethereum/contracts"
+	"github.com/umbracle/ethgo/jsonrpc"
+	"github.com/umbracle/ethgo/wallet"
 )
 
 func setupClient() (*Client, error) {
 	// Create a new client
-	eth := Eth{}
-	return eth.NewClient(Options{
-		URL:        "http://localhost:8545",
-		PrivateKey: "42b6e34dc21598a807dc19d7784c71b2a7a01f6480dc6f58258f78e539f1a1fa",
-	})
+	pk, _ := hex.DecodeString("42b6e34dc21598a807dc19d7784c71b2a7a01f6480dc6f58258f78e539f1a1fa")
+	wa, _ := wallet.NewWalletFromPrivKey(pk)
+	c, _ := jsonrpc.NewClient("http://localhost:8545")
+	cid, err := c.Eth().ChainID()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Client{
+		client:  c,
+		w:       wa,
+		chainID: cid,
+	}, nil
 }
 
 func Test_DeployLoadTester(t *testing.T) {
