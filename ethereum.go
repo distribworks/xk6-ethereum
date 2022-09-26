@@ -6,9 +6,8 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/distribworks/xk6-ethereum/contracts"
+	"github.com/dop251/goja"
 	"github.com/umbracle/ethgo"
-	"github.com/umbracle/ethgo/contract"
 	"github.com/umbracle/ethgo/jsonrpc"
 	"github.com/umbracle/ethgo/wallet"
 	"go.k6.io/k6/js/modules"
@@ -51,7 +50,7 @@ func (c *Client) GetBlockByNumber(number ethgo.BlockNumber) (*ethgo.Block, error
 
 // GetNonce returns the nonce for the given address.
 func (c *Client) GetNonce(address string) (uint64, error) {
-	return c.client.Eth().GetNonce(ethgo.HexToAddress(address), ethgo.Latest)
+	return c.client.Eth().GetNonce(ethgo.HexToAddress(address), ethgo.Pending)
 }
 
 // EstimateGas returns the estimated gas for the given transaction.
@@ -118,8 +117,6 @@ func (c *Client) SendRawTransaction(tx Transaction) (string, error) {
 		ChainID:  c.chainID,
 	}
 
-	t.Gas = gas
-
 	s := wallet.NewEIP155Signer(t.ChainID.Uint64())
 	st, err := s.SignTx(t, c.w)
 	if err != nil {
@@ -161,92 +158,42 @@ func (c *Client) GetTransactionReceipt(hash string) (*Receipt, error) {
 }
 
 // WaitForTransactionReceipt waits for the transaction receipt for the given transaction hash.
-func (c *Client) WaitForTransactionReceipt(hash string) (*Receipt, error) {
+func (c *Client) WaitForTransactionReceipt(hash string) *goja.Promise {
+	promise, resolve, reject := c.makeHandledPromise()
 	now := time.Now()
-	for {
-		receipt, err := c.GetTransactionReceipt(hash)
-		if err != nil {
-			if err.Error() != "not found" {
-				return nil, err
+
+	go func() {
+		for {
+			receipt, err := c.GetTransactionReceipt(hash)
+			if err != nil {
+				if err.Error() != "not found" {
+					reject(err)
+					return
+				}
 			}
+			if receipt != nil {
+				// If we are testing vu is nil
+				if c.vu != nil {
+					// Report metrics
+					metrics.PushIfNotDone(c.vu.Context(), c.vu.State().Samples, metrics.ConnectedSamples{
+						Samples: []metrics.Sample{
+							{
+								Metric: c.metrics.TimeToMine,
+								Tags:   metrics.NewSampleTags(map[string]string{"call": "get_transaction_receipt"}),
+								Value:  float64(time.Since(now) / time.Millisecond),
+								Time:   now,
+							},
+						},
+					})
+				}
+				resolve(receipt)
+				break
+			}
+			time.Sleep(100 * time.Millisecond)
 		}
-		if receipt != nil {
-			// Report metrics
-			metrics.PushIfNotDone(c.vu.Context(), c.vu.State().Samples, metrics.ConnectedSamples{
-				Samples: []metrics.Sample{
-					{
-						Metric: c.metrics.TimeToMine,
-						Tags:   metrics.NewSampleTags(map[string]string{"call": "get_transaction_receipt"}),
-						Value:  float64(time.Since(now) / time.Millisecond),
-						Time:   now,
-					},
-				},
-			})
-			return receipt, nil
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-}
+	}()
 
-// DeployLoadTester deploys the load tester contract.
-func (c *Client) DeployLoadTester() (string, error) {
-	opts := []contract.ContractOption{
-		contract.WithJsonRPC(c.client.Eth()),
-		contract.WithSender(c.w),
-	}
-
-	// deploy the contract
-	txn, err := contracts.DeployLoadTester(c.client, c.w.Address(), []interface{}{}, opts...)
-	if err != nil {
-		return "", err
-	}
-
-	err = txn.Do()
-	if err != nil {
-		return "", err
-	}
-
-	receipt, err := txn.Wait()
-	if err != nil {
-		return "", err
-	}
-
-	return receipt.ContractAddress.String(), nil
-}
-
-// CallLoadTester calls as specific function of the load tester contract.
-func (c *Client) CallLoadTester(contractAddress string, function string, args ...interface{}) (string, error) {
-	opts := []contract.ContractOption{
-		contract.WithJsonRPC(c.client.Eth()),
-		contract.WithSender(c.w),
-	}
-
-	// deploy the contract
-	lt := contracts.NewLoadTester(ethgo.HexToAddress(contractAddress), opts...)
-
-	var txn contract.Txn
-	var err error
-	switch function {
-	case "inc":
-		txn, err = lt.Inc()
-		if err != nil {
-			return "", err
-		}
-	default:
-		return "", fmt.Errorf("unknown function: %s", function)
-	}
-
-	err = txn.Do()
-	if err != nil {
-		return "", err
-	}
-
-	receipt, err := txn.Wait()
-	if err != nil {
-		return "", err
-	}
-
-	return receipt.TransactionHash.String(), nil
+	return promise
 }
 
 // Accounts returns a list of addresses owned by client. This endpoint is not enabled in infrastructure providers.
@@ -262,4 +209,27 @@ func (c *Client) Accounts() ([]string, error) {
 	}
 
 	return addresses, nil
+}
+
+// makeHandledPromise will create a promise and return its resolve and reject methods,
+// wrapped in such a way that it will block the eventloop from exiting before they are
+// called even if the promise isn't resolved by the time the current script ends executing.
+func (c *Client) makeHandledPromise() (*goja.Promise, func(interface{}), func(interface{})) {
+	runtime := c.vu.Runtime()
+	callback := c.vu.RegisterCallback()
+	p, resolve, reject := runtime.NewPromise()
+
+	return p, func(i interface{}) {
+			// more stuff
+			callback(func() error {
+				resolve(i)
+				return nil
+			})
+		}, func(i interface{}) {
+			// more stuff
+			callback(func() error {
+				reject(i)
+				return nil
+			})
+		}
 }
