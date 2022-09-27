@@ -24,6 +24,7 @@ const (
 type ethMetrics struct {
 	RequestDuration *metrics.Metric
 	TimeToMine      *metrics.Metric
+	Blocks          *metrics.Metric
 }
 
 func init() {
@@ -130,6 +131,10 @@ func registerMetrics(vu modules.VU) (ethMetrics, error) {
 		return m, err
 	}
 	m.TimeToMine, err = registry.NewMetric("ethereum_time_to_mine", metrics.Trend, metrics.Time)
+	if err != nil {
+		return m, err
+	}
+	m.Blocks, err = registry.NewMetric("ethereum_blocks", metrics.Gauge, metrics.Default)
 	if err != nil {
 		return m, err
 	}

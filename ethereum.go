@@ -2,17 +2,33 @@
 package ethereum
 
 import (
+	"encoding/hex"
 	"fmt"
 	"math/big"
+	"strconv"
 	"time"
 
 	"github.com/dop251/goja"
 	"github.com/umbracle/ethgo"
+	"github.com/umbracle/ethgo/abi"
+	"github.com/umbracle/ethgo/contract"
 	"github.com/umbracle/ethgo/jsonrpc"
 	"github.com/umbracle/ethgo/wallet"
 	"go.k6.io/k6/js/modules"
 	"go.k6.io/k6/metrics"
 )
+
+type Transaction struct {
+	From     string
+	To       string
+	Input    []byte
+	GasPrice uint64
+	Gas      uint64
+	Value    int64
+	Nonce    uint64
+	// eip-2930 values
+	ChainId int64
+}
 
 type Client struct {
 	w       *wallet.Key
@@ -133,25 +149,14 @@ func (c *Client) SendRawTransaction(tx Transaction) (string, error) {
 }
 
 // GetTransactionReceipt returns the transaction receipt for the given transaction hash.
-func (c *Client) GetTransactionReceipt(hash string) (*Receipt, error) {
+func (c *Client) GetTransactionReceipt(hash string) (*ethgo.Receipt, error) {
 	r, err := c.client.Eth().GetTransactionReceipt(ethgo.HexToHash(hash))
 	if err != nil {
 		return nil, err
 	}
 
 	if r != nil {
-		return &Receipt{
-			TransactionHash:   r.TransactionHash.String(),
-			TransactionIndex:  r.TransactionIndex,
-			ContractAddress:   r.ContractAddress.String(),
-			BlockHash:         r.BlockHash.String(),
-			From:              r.From.String(),
-			BlockNumber:       r.BlockNumber,
-			GasUsed:           r.GasUsed,
-			CumulativeGasUsed: r.CumulativeGasUsed,
-			LogsBloom:         r.LogsBloom,
-			Status:            r.Status,
-		}, nil
+		return r, nil
 	}
 
 	return nil, fmt.Errorf("not found")
@@ -175,6 +180,12 @@ func (c *Client) WaitForTransactionReceipt(hash string) *goja.Promise {
 				// If we are testing vu is nil
 				if c.vu != nil {
 					// Report metrics
+					b, err := c.client.Eth().GetBlockByHash(receipt.BlockHash, true)
+					if err != nil {
+						reject(err)
+						return
+					}
+
 					metrics.PushIfNotDone(c.vu.Context(), c.vu.State().Samples, metrics.ConnectedSamples{
 						Samples: []metrics.Sample{
 							{
@@ -182,6 +193,16 @@ func (c *Client) WaitForTransactionReceipt(hash string) *goja.Promise {
 								Tags:   metrics.NewSampleTags(map[string]string{"call": "get_transaction_receipt"}),
 								Value:  float64(time.Since(now) / time.Millisecond),
 								Time:   now,
+							},
+							{
+								Metric: c.metrics.Blocks,
+								Tags: metrics.NewSampleTags(map[string]string{
+									"transactions": strconv.Itoa(len(b.Transactions)),
+									"gas_used":     strconv.Itoa(int(b.GasUsed)),
+									"gas_limit":    strconv.Itoa(int(b.GasLimit)),
+								}),
+								Value: float64(int(receipt.BlockNumber)),
+								Time:  now,
 							},
 						},
 					})
@@ -209,6 +230,75 @@ func (c *Client) Accounts() ([]string, error) {
 	}
 
 	return addresses, nil
+}
+
+// NewConstract creates a new contract instance with the given ABI.
+func (c *Client) NewContract(address string, abistr string) (*Contract, error) {
+	contractABI, err := abi.NewABI(abistr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse abi: %w", err)
+	}
+
+	opts := []contract.ContractOption{
+		contract.WithJsonRPC(c.client.Eth()),
+		contract.WithSender(c.w),
+	}
+
+	contract := contract.NewContract(ethgo.HexToAddress(address), contractABI, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create contract: %w", err)
+	}
+
+	return &Contract{
+		Contract: contract,
+		client:   c,
+	}, nil
+}
+
+// DeployContract deploys a contract to the blockchain.
+func (c *Client) DeployContract(abistr string, bytecode string, args ...interface{}) (*ethgo.Receipt, error) {
+	//promise, resolve, reject := c.makeHandledPromise()
+
+	//go (func() {
+	// Parse ABI
+	contractABI, err := abi.NewABI(abistr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse abi: %w", err)
+	}
+
+	// Parse bytecode
+	contractBytecode, err := hex.DecodeString(bytecode)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode bytecode: %w", err)
+	}
+
+	opts := []contract.ContractOption{
+		contract.WithJsonRPC(c.client.Eth()),
+		contract.WithSender(c.w),
+	}
+
+	// Deploy contract
+	txn, err := contract.DeployContract(contractABI, contractBytecode, args, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to deploy contract: %w", err)
+	}
+	txn.WithOpts(&contract.TxnOpts{
+		GasLimit: 1500000,
+	})
+
+	err = txn.Do()
+	if err != nil {
+		return nil, fmt.Errorf("failed to deploy contract: %w", err)
+	}
+
+	receipt, err := txn.Wait()
+	if err != nil {
+		return nil, fmt.Errorf("failed waiting to deploy contract: %w", err)
+	}
+	//resolve(receipt)
+	//})()
+
+	return receipt, nil
 }
 
 // makeHandledPromise will create a promise and return its resolve and reject methods,
