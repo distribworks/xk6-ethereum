@@ -60,8 +60,8 @@ func (c *Client) BlockNumber() (uint64, error) {
 }
 
 // GetBlockByNumber returns the block with the given block number.
-func (c *Client) GetBlockByNumber(number ethgo.BlockNumber) (*ethgo.Block, error) {
-	return c.client.Eth().GetBlockByNumber(number, true)
+func (c *Client) GetBlockByNumber(number ethgo.BlockNumber, full bool) (*ethgo.Block, error) {
+	return c.client.Eth().GetBlockByNumber(number, full)
 }
 
 // GetNonce returns the nonce for the given address.
@@ -180,29 +180,13 @@ func (c *Client) WaitForTransactionReceipt(hash string) *goja.Promise {
 				// If we are testing vu is nil
 				if c.vu != nil {
 					// Report metrics
-					b, err := c.client.Eth().GetBlockByHash(receipt.BlockHash, true)
-					if err != nil {
-						reject(err)
-						return
-					}
-
 					metrics.PushIfNotDone(c.vu.Context(), c.vu.State().Samples, metrics.ConnectedSamples{
 						Samples: []metrics.Sample{
 							{
 								Metric: c.metrics.TimeToMine,
-								Tags:   metrics.NewSampleTags(map[string]string{"call": "get_transaction_receipt"}),
-								Value:  float64(time.Since(now) / time.Millisecond),
-								Time:   now,
-							},
-							{
-								Metric: c.metrics.Blocks,
-								Tags: metrics.NewSampleTags(map[string]string{
-									"transactions": strconv.Itoa(len(b.Transactions)),
-									"gas_used":     strconv.Itoa(int(b.GasUsed)),
-									"gas_limit":    strconv.Itoa(int(b.GasLimit)),
-								}),
-								Value: float64(int(receipt.BlockNumber)),
-								Time:  now,
+								Tags:   metrics.NewSampleTags(map[string]string{"vu": c.vu.State().Group.Name}),
+								Value:  float64(time.Since(now).Milliseconds()),
+								Time:   time.Now(),
 							},
 						},
 					})
@@ -322,4 +306,61 @@ func (c *Client) makeHandledPromise() (*goja.Promise, func(interface{}), func(in
 				return nil
 			})
 		}
+}
+
+// PollBlocks polls for new blocks and emits a "block" metric.
+func (c *Client) pollForBlocks() {
+	var lastBlockNumber uint64
+	var prevBlock *ethgo.Block
+
+	for {
+		blockNumber, err := c.BlockNumber()
+		if err != nil {
+			panic(err)
+		}
+		if blockNumber > lastBlockNumber {
+			block, err := c.GetBlockByNumber(ethgo.BlockNumber(blockNumber), false)
+			if err != nil {
+				panic(err)
+			}
+			lastBlockNumber = blockNumber
+
+			// compute block time
+			var blockTime time.Duration
+			if prevBlock != nil {
+				blockTime = time.Unix(int64(block.Timestamp), 0).Sub(time.Unix(int64(prevBlock.Timestamp), 0))
+			}
+
+			// Compute TPS
+			var tps float64
+			if prevBlock != nil {
+				tps = float64(len(block.TransactionsHashes)) / float64(blockTime.Seconds())
+			}
+			prevBlock = block
+
+			if c.vu.Context() != nil {
+				metrics.PushIfNotDone(c.vu.Context(), c.vu.State().Samples, metrics.ConnectedSamples{
+					Samples: []metrics.Sample{
+						{
+							Metric: c.metrics.Block,
+							Tags: metrics.NewSampleTags(map[string]string{
+								"transactions": strconv.Itoa(len(block.TransactionsHashes)),
+								"gas_used":     strconv.Itoa(int(block.GasUsed)),
+								"gas_limit":    strconv.Itoa(int(block.GasLimit)),
+							}),
+							Value: float64(blockNumber),
+							Time:  time.Now(),
+						},
+						{
+							Metric: c.metrics.TPS,
+							// Tags: metrics.NewSampleTags(map[string]string{}),
+							Value: tps,
+							Time:  time.Now(),
+						},
+					},
+				})
+			}
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
 }
