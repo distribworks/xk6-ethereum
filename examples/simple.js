@@ -33,9 +33,9 @@ export default function (data) {
   const txh = client.sendRawTransaction(tx)
   console.log("tx hash => " + txh);
   // Optional: wait for the transaction to be mined
-  const receipt = client.waitForTransactionReceipt(txh).then((receipt) => {
-    console.log("tx block hash => " + receipt.block_hash);
-    console.log(typeof receipt.block_number);
-  });
+  // const receipt = client.waitForTransactionReceipt(txh).then((receipt) => {
+  //   console.log("tx block hash => " + receipt.block_hash);
+  //   console.log(typeof receipt.block_number);
+  // });
   data.nonce = data.nonce + 1;
 }
