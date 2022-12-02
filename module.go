@@ -26,6 +26,7 @@ type ethMetrics struct {
 	TimeToMine      *metrics.Metric
 	Block           *metrics.Metric
 	TPS             *metrics.Metric
+	BlockTime       *metrics.Metric
 }
 
 func init() {
@@ -119,7 +120,9 @@ func (mi *ModuleInstance) NewClient(call goja.ConstructorCall) *goja.Object {
 		chainID: cid,
 	}
 
-	go client.pollForBlocks()
+	if mi.vu.State().VUID == 1 {
+		go client.pollForBlocks()
+	}
 
 	return rt.ToValue(client).ToObject(rt)
 }
@@ -137,11 +140,15 @@ func registerMetrics(vu modules.VU) (ethMetrics, error) {
 	if err != nil {
 		return m, err
 	}
-	m.Block, err = registry.NewMetric("ethereum_block", metrics.Counter, metrics.Default)
+	m.Block, err = registry.NewMetric("ethereum_block", metrics.Gauge, metrics.Default)
 	if err != nil {
 		return m, err
 	}
 	m.TPS, err = registry.NewMetric("ethereum_tps", metrics.Gauge, metrics.Default)
+	if err != nil {
+		return m, err
+	}
+	m.BlockTime, err = registry.NewMetric("ethereum_block_time", metrics.Trend, metrics.Time)
 	if err != nil {
 		return m, err
 	}

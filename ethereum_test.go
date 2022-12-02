@@ -94,3 +94,10 @@ func Test_DeployContract(t *testing.T) {
 	require.NoError(t, err)
 	t.Log(res)
 }
+
+func Test_pollForBlocks(t *testing.T) {
+	client, err := setupClient()
+	require.NoError(t, err)
+
+	client.pollForBlocks()
+}

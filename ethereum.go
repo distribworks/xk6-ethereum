@@ -1,4 +1,4 @@
-// xk6 build --with github.com/grafana/xk6-ethereum=.
+// xk6 build --with github.com/distribworks/xk6-ethereum=.
 package ethereum
 
 import (
@@ -185,7 +185,7 @@ func (c *Client) WaitForTransactionReceipt(hash string) *goja.Promise {
 							{
 								Metric: c.metrics.TimeToMine,
 								Tags:   metrics.NewSampleTags(map[string]string{"vu": c.vu.State().Group.Name}),
-								Value:  float64(time.Since(now).Milliseconds()),
+								Value:  float64(time.Since(now) / time.Millisecond),
 								Time:   time.Now(),
 							},
 						},
@@ -313,12 +313,19 @@ func (c *Client) pollForBlocks() {
 	var lastBlockNumber uint64
 	var prevBlock *ethgo.Block
 
+	now := time.Now()
+
 	for {
 		blockNumber, err := c.BlockNumber()
 		if err != nil {
 			panic(err)
 		}
+
 		if blockNumber > lastBlockNumber {
+			// compute precise block time
+			blockTime := time.Since(now)
+			now = time.Now()
+
 			block, err := c.GetBlockByNumber(ethgo.BlockNumber(blockNumber), false)
 			if err != nil {
 				panic(err)
@@ -326,19 +333,19 @@ func (c *Client) pollForBlocks() {
 			lastBlockNumber = blockNumber
 
 			// compute block time
-			var blockTime time.Duration
+			var blockTimestampDiff time.Duration
 			if prevBlock != nil {
-				blockTime = time.Unix(int64(block.Timestamp), 0).Sub(time.Unix(int64(prevBlock.Timestamp), 0))
+				blockTimestampDiff = time.Unix(int64(block.Timestamp), 0).Sub(time.Unix(int64(prevBlock.Timestamp), 0))
 			}
 
 			// Compute TPS
 			var tps float64
 			if prevBlock != nil {
-				tps = float64(len(block.TransactionsHashes)) / float64(blockTime.Seconds())
+				tps = float64(len(block.TransactionsHashes)) / float64(blockTimestampDiff.Seconds())
 			}
 			prevBlock = block
 
-			if c.vu.Context() != nil {
+			if c.vu != nil && c.vu.Context() != nil {
 				metrics.PushIfNotDone(c.vu.Context(), c.vu.State().Samples, metrics.ConnectedSamples{
 					Samples: []metrics.Sample{
 						{
@@ -353,14 +360,22 @@ func (c *Client) pollForBlocks() {
 						},
 						{
 							Metric: c.metrics.TPS,
-							// Tags: metrics.NewSampleTags(map[string]string{}),
-							Value: tps,
+							Value:  tps,
+							Time:   time.Now(),
+						},
+						{
+							Metric: c.metrics.BlockTime,
+							Tags: metrics.NewSampleTags(map[string]string{
+								"block_timestamp_diff": blockTimestampDiff.String(),
+							}),
+							Value: float64(blockTime.Milliseconds()),
 							Time:  time.Now(),
 						},
 					},
 				})
 			}
 		}
+
 		time.Sleep(500 * time.Millisecond)
 	}
 }
