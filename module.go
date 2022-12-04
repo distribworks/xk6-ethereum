@@ -120,7 +120,7 @@ func (mi *ModuleInstance) NewClient(call goja.ConstructorCall) *goja.Object {
 		chainID: cid,
 	}
 
-	if mi.vu.State().VUID == 1 {
+	if mi.vu.State() == nil || mi.vu.State().VUID == 1 {
 		go client.pollForBlocks()
 	}
 
