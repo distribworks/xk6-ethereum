@@ -42,6 +42,14 @@ func (c *Client) Exports() modules.Exports {
 	return modules.Exports{}
 }
 
+func (c *Client) Call(method string, params ...interface{}) (interface{}, error) {
+	t := time.Now()
+	var out interface{}
+	err := c.client.Call(method, &out, params...)
+	c.reportMetricsFromStats(method, time.Since(t))
+	return out, err
+}
+
 func (c *Client) GasPrice() (uint64, error) {
 	t := time.Now()
 	g, err := c.client.Eth().GasPrice()
