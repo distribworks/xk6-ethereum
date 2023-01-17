@@ -1,7 +1,12 @@
 import eth from 'k6/x/ethereum';
 
+var rpc_url = __ENV.RCP_URL
+if (rpc_url == undefined) {
+  rpc_url = "http://localhost:10002"
+}
+
 const client = new eth.Client({
-    url: 'http://localhost:10002',
+    url: rpc_url,
     // You can also specify a private key here
     // privateKey: 'private key of your account',
     // or a mnemonic
