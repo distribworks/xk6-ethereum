@@ -140,7 +140,7 @@ func registerMetrics(vu modules.VU) (ethMetrics, error) {
 	if err != nil {
 		return m, err
 	}
-	m.Block, err = registry.NewMetric("ethereum_block", metrics.Gauge, metrics.Default)
+	m.Block, err = registry.NewMetric("ethereum_block", metrics.Counter, metrics.Default)
 	if err != nil {
 		return m, err
 	}
