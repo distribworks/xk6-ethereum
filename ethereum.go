@@ -342,7 +342,7 @@ func (c *Client) pollForBlocks() {
 
 			// compute block time
 			var blockTimestampDiff time.Duration
-			if prevBlock != nil {
+			if block != nil && prevBlock != nil {
 				blockTimestampDiff = time.Unix(int64(block.Timestamp), 0).Sub(time.Unix(int64(prevBlock.Timestamp), 0))
 			}
 
