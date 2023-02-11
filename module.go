@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/dop251/goja"
@@ -20,6 +21,8 @@ import (
 const (
 	privateKey = "42b6e34dc21598a807dc19d7784c71b2a7a01f6480dc6f58258f78e539f1a1fa"
 )
+
+var once sync.Once
 
 type ethMetrics struct {
 	RequestDuration *metrics.Metric
@@ -120,9 +123,9 @@ func (mi *ModuleInstance) NewClient(call goja.ConstructorCall) *goja.Object {
 		chainID: cid,
 	}
 
-	if mi.vu.State() == nil || mi.vu.State().VUID == 1 {
-		go client.pollForBlocks()
-	}
+	go func() {
+		once.Do(client.pollForBlocks)
+	}()
 
 	return rt.ToValue(client).ToObject(rt)
 }
