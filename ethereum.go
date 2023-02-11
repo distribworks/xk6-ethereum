@@ -340,17 +340,16 @@ func (c *Client) pollForBlocks() {
 			}
 			lastBlockNumber = blockNumber
 
-			// compute block time
 			var blockTimestampDiff time.Duration
-			if block != nil && prevBlock != nil {
-				blockTimestampDiff = time.Unix(int64(block.Timestamp), 0).Sub(time.Unix(int64(prevBlock.Timestamp), 0))
-			}
-
-			// Compute TPS
 			var tps float64
-			if prevBlock != nil {
+
+			if block != nil && prevBlock != nil {
+				// compute block time
+				blockTimestampDiff = time.Unix(int64(block.Timestamp), 0).Sub(time.Unix(int64(prevBlock.Timestamp), 0))
+				// Compute TPS
 				tps = float64(len(block.TransactionsHashes)) / float64(blockTimestampDiff.Seconds())
 			}
+
 			prevBlock = block
 
 			if c.vu != nil && c.vu.Context() != nil {
