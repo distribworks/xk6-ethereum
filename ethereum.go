@@ -367,6 +367,14 @@ func (c *Client) pollForBlocks() {
 							Time:  time.Now(),
 						},
 						{
+							Metric: c.metrics.GasUsed,
+							Tags: metrics.NewSampleTags(map[string]string{
+								"block": strconv.Itoa(int(blockNumber)),
+							}),
+							Value: float64(block.GasUsed),
+							Time:  time.Now(),
+						},
+						{
 							Metric: c.metrics.TPS,
 							Value:  tps,
 							Time:   time.Now(),

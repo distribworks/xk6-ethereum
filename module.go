@@ -28,6 +28,7 @@ type ethMetrics struct {
 	RequestDuration *metrics.Metric
 	TimeToMine      *metrics.Metric
 	Block           *metrics.Metric
+	GasUsed         *metrics.Metric
 	TPS             *metrics.Metric
 	BlockTime       *metrics.Metric
 }
@@ -144,6 +145,10 @@ func registerMetrics(vu modules.VU) (ethMetrics, error) {
 		return m, err
 	}
 	m.Block, err = registry.NewMetric("ethereum_block", metrics.Counter, metrics.Default)
+	if err != nil {
+		return m, err
+	}
+	m.GasUsed, err = registry.NewMetric("ethereum_gas_used", metrics.Gauge, metrics.Default)
 	if err != nil {
 		return m, err
 	}
