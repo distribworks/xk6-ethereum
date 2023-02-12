@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
+	"github.com/sirupsen/logrus"
 	"github.com/umbracle/ethgo/jsonrpc"
 	"github.com/umbracle/ethgo/wallet"
 	"go.k6.io/k6/js/common"
@@ -64,6 +65,8 @@ func (mi *ModuleInstance) Exports() modules.Exports {
 		"Client": mi.NewClient,
 	}}
 }
+
+var endpoints = map[string]*Client{}
 
 func (mi *ModuleInstance) NewClient(call goja.ConstructorCall) *goja.Object {
 	rt := mi.vu.Runtime()
@@ -124,9 +127,18 @@ func (mi *ModuleInstance) NewClient(call goja.ConstructorCall) *goja.Object {
 		chainID: cid,
 	}
 
-	go func() {
-		once.Do(client.pollForBlocks)
-	}()
+	if mi.vu != nil && mi.vu.Context() != nil && mi.vu.State() != nil {
+		logrus.Infof("creating new client for %s", opts.URL)
+		if _, ok := endpoints[opts.URL]; ok {
+			logrus.Errorf("endpoint %s already exists, skipping", opts.URL)
+		} else {
+			logrus.Infof("adding endpoint %s", opts.URL)
+			mutex.Lock()
+			endpoints[opts.URL] = client
+			mutex.Unlock()
+			go client.pollForBlocks()
+		}
+	}
 
 	return rt.ToValue(client).ToObject(rt)
 }
@@ -148,11 +160,11 @@ func registerMetrics(vu modules.VU) (ethMetrics, error) {
 	if err != nil {
 		return m, err
 	}
-	m.GasUsed, err = registry.NewMetric("ethereum_gas_used", metrics.Gauge, metrics.Default)
+	m.GasUsed, err = registry.NewMetric("ethereum_gas_used", metrics.Trend, metrics.Default)
 	if err != nil {
 		return m, err
 	}
-	m.TPS, err = registry.NewMetric("ethereum_tps", metrics.Gauge, metrics.Default)
+	m.TPS, err = registry.NewMetric("ethereum_tps", metrics.Trend, metrics.Default)
 	if err != nil {
 		return m, err
 	}
@@ -166,17 +178,16 @@ func registerMetrics(vu modules.VU) (ethMetrics, error) {
 
 func (c *Client) reportMetricsFromStats(call string, t time.Duration) {
 	now := time.Now()
-	tags := metrics.NewSampleTags(map[string]string{"call": call})
+	tags := &metrics.TagSet{}
+	tags.With("call", call)
 	ctx := c.vu.Context()
-	metrics.PushIfNotDone(ctx, c.vu.State().Samples, metrics.ConnectedSamples{
-		Samples: []metrics.Sample{
-			{
-				Metric: c.metrics.RequestDuration,
-				Tags:   tags,
-				Value:  float64(t / time.Millisecond),
-				Time:   now,
-			},
+	metrics.PushIfNotDone(ctx, c.vu.State().Samples, metrics.Sample{
+		TimeSeries: metrics.TimeSeries{
+			Metric: c.metrics.RequestDuration,
+			Tags:   tags,
 		},
+		Value: float64(t / time.Millisecond),
+		Time:  now,
 	})
 }
 
