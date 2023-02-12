@@ -2,6 +2,7 @@
 package ethereum
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -357,13 +358,13 @@ func (c *Client) pollForBlocks() {
 			prevBlock = block
 
 			if c.vu != nil || c.vu.Context() != nil {
-				ts := &metrics.TagSet{}
-				metrics.PushIfNotDone(c.vu.Context(), c.vu.State().Samples, metrics.ConnectedSamples{
+				registry := metrics.NewRegistry()
+				metrics.PushIfNotDone(context.Background(), c.vu.State().Samples, metrics.ConnectedSamples{
 					Samples: []metrics.Sample{
 						{
 							TimeSeries: metrics.TimeSeries{
 								Metric: c.metrics.Block,
-								Tags: ts.With("transactions", strconv.Itoa(len(block.TransactionsHashes))).
+								Tags: registry.RootTagSet().With("transactions", strconv.Itoa(len(block.TransactionsHashes))).
 									With("gas_used", strconv.Itoa(int(block.GasUsed))).
 									With("gas_limit", strconv.Itoa(int(block.GasLimit))),
 							},
@@ -373,9 +374,9 @@ func (c *Client) pollForBlocks() {
 						{
 							TimeSeries: metrics.TimeSeries{
 								Metric: c.metrics.GasUsed,
-								// Tags: ts.WithTagsFromMap(map[string]string{
-								// 	"block": strconv.Itoa(int(blockNumber)),
-								// }),
+								Tags: registry.RootTagSet().WithTagsFromMap(map[string]string{
+									"block": strconv.Itoa(int(blockNumber)),
+								}),
 							},
 							Value: float64(block.GasUsed),
 							Time:  time.Now(),
@@ -390,7 +391,7 @@ func (c *Client) pollForBlocks() {
 						{
 							TimeSeries: metrics.TimeSeries{
 								Metric: c.metrics.BlockTime,
-								Tags: ts.WithTagsFromMap(map[string]string{
+								Tags: registry.RootTagSet().WithTagsFromMap(map[string]string{
 									"block_timestamp_diff": blockTimestampDiff.String(),
 								}),
 							},

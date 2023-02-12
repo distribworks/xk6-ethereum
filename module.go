@@ -66,7 +66,7 @@ func (mi *ModuleInstance) Exports() modules.Exports {
 	}}
 }
 
-var endpoints = map[string]*Client{}
+var endpoints = map[string]bool{}
 
 func (mi *ModuleInstance) NewClient(call goja.ConstructorCall) *goja.Object {
 	rt := mi.vu.Runtime()
@@ -128,13 +128,10 @@ func (mi *ModuleInstance) NewClient(call goja.ConstructorCall) *goja.Object {
 	}
 
 	if mi.vu != nil && mi.vu.Context() != nil && mi.vu.State() != nil {
-		logrus.Infof("creating new client for %s", opts.URL)
-		if _, ok := endpoints[opts.URL]; ok {
-			logrus.Errorf("endpoint %s already exists, skipping", opts.URL)
-		} else {
-			logrus.Infof("adding endpoint %s", opts.URL)
+		if _, ok := endpoints[opts.URL]; !ok {
+			logrus.Infof("Gathering metrics for endpoint %s", opts.URL)
 			mutex.Lock()
-			endpoints[opts.URL] = client
+			endpoints[opts.URL] = true
 			mutex.Unlock()
 			go client.pollForBlocks()
 		}
@@ -178,8 +175,8 @@ func registerMetrics(vu modules.VU) (ethMetrics, error) {
 
 func (c *Client) reportMetricsFromStats(call string, t time.Duration) {
 	now := time.Now()
-	tags := &metrics.TagSet{}
-	tags.With("call", call)
+	registry := metrics.NewRegistry()
+	tags := registry.RootTagSet().With("call", call)
 	ctx := c.vu.Context()
 	metrics.PushIfNotDone(ctx, c.vu.State().Samples, metrics.Sample{
 		TimeSeries: metrics.TimeSeries{
