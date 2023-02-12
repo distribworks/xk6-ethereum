@@ -2,10 +2,12 @@
 package ethereum
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 	"math/big"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/dop251/goja"
@@ -191,10 +193,11 @@ func (c *Client) WaitForTransactionReceipt(hash string) *goja.Promise {
 					metrics.PushIfNotDone(c.vu.Context(), c.vu.State().Samples, metrics.ConnectedSamples{
 						Samples: []metrics.Sample{
 							{
-								Metric: c.metrics.TimeToMine,
-								Tags:   metrics.NewSampleTags(map[string]string{"vu": c.vu.State().Group.Name}),
-								Value:  float64(time.Since(now) / time.Millisecond),
-								Time:   time.Now(),
+								TimeSeries: metrics.TimeSeries{
+									Metric: c.metrics.TimeToMine,
+								},
+								Value: float64(time.Since(now) / time.Millisecond),
+								Time:  time.Now(),
 							},
 						},
 					})
@@ -316,6 +319,8 @@ func (c *Client) makeHandledPromise() (*goja.Promise, func(interface{}), func(in
 		}
 }
 
+var mutex = sync.Mutex{}
+
 // PollBlocks polls for new blocks and emits a "block" metric.
 func (c *Client) pollForBlocks() {
 	var lastBlockNumber uint64
@@ -352,37 +357,44 @@ func (c *Client) pollForBlocks() {
 
 			prevBlock = block
 
-			if c.vu != nil && c.vu.Context() != nil {
-				metrics.PushIfNotDone(c.vu.Context(), c.vu.State().Samples, metrics.ConnectedSamples{
+			if c.vu != nil || c.vu.Context() != nil {
+				registry := metrics.NewRegistry()
+				metrics.PushIfNotDone(context.Background(), c.vu.State().Samples, metrics.ConnectedSamples{
 					Samples: []metrics.Sample{
 						{
-							Metric: c.metrics.Block,
-							Tags: metrics.NewSampleTags(map[string]string{
-								"transactions": strconv.Itoa(len(block.TransactionsHashes)),
-								"gas_used":     strconv.Itoa(int(block.GasUsed)),
-								"gas_limit":    strconv.Itoa(int(block.GasLimit)),
-							}),
+							TimeSeries: metrics.TimeSeries{
+								Metric: c.metrics.Block,
+								Tags: registry.RootTagSet().With("transactions", strconv.Itoa(len(block.TransactionsHashes))).
+									With("gas_used", strconv.Itoa(int(block.GasUsed))).
+									With("gas_limit", strconv.Itoa(int(block.GasLimit))),
+							},
 							Value: float64(blockNumber),
 							Time:  time.Now(),
 						},
 						{
-							Metric: c.metrics.GasUsed,
-							Tags: metrics.NewSampleTags(map[string]string{
-								"block": strconv.Itoa(int(blockNumber)),
-							}),
+							TimeSeries: metrics.TimeSeries{
+								Metric: c.metrics.GasUsed,
+								Tags: registry.RootTagSet().WithTagsFromMap(map[string]string{
+									"block": strconv.Itoa(int(blockNumber)),
+								}),
+							},
 							Value: float64(block.GasUsed),
 							Time:  time.Now(),
 						},
 						{
-							Metric: c.metrics.TPS,
-							Value:  tps,
-							Time:   time.Now(),
+							TimeSeries: metrics.TimeSeries{
+								Metric: c.metrics.TPS,
+							},
+							Value: tps,
+							Time:  time.Now(),
 						},
 						{
-							Metric: c.metrics.BlockTime,
-							Tags: metrics.NewSampleTags(map[string]string{
-								"block_timestamp_diff": blockTimestampDiff.String(),
-							}),
+							TimeSeries: metrics.TimeSeries{
+								Metric: c.metrics.BlockTime,
+								Tags: registry.RootTagSet().WithTagsFromMap(map[string]string{
+									"block_timestamp_diff": blockTimestampDiff.String(),
+								}),
+							},
 							Value: float64(blockTime.Milliseconds()),
 							Time:  time.Now(),
 						},

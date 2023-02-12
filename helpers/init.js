@@ -2,8 +2,11 @@ import eth from 'k6/x/ethereum';
 import exec from 'k6/execution';
 import wallet from 'k6/x/ethereum/wallet';
 
-export function fundTestAccounts(root_address, url) {
-    const client = new eth.Client({ url: url });
+export function fundTestAccounts(root_address, url, priv_key) {
+    const client = new eth.Client({ 
+        url: url,
+        privateKey: priv_key,
+    });
     var accounts = [];
     var nonce = client.getNonce(root_address);
 
@@ -18,7 +21,7 @@ export function fundTestAccounts(root_address, url) {
         // fund each account with 5 ETH
         var tx = {
             to: tacc.address,
-            value: Number(5 * 1e18),
+            value: Number(0.05 * 1e18),
             gas_price: client.gasPrice(),
             nonce: nonce,
         };

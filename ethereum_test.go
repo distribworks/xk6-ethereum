@@ -11,9 +11,10 @@ import (
 
 func setupClient() (*Client, error) {
 	// Create a new client
+	url := "http://localhost:10002"
 	pk, _ := hex.DecodeString("42b6e34dc21598a807dc19d7784c71b2a7a01f6480dc6f58258f78e539f1a1fa")
 	wa, _ := wallet.NewWalletFromPrivKey(pk)
-	c, _ := jsonrpc.NewClient("http://localhost:10002")
+	c, _ := jsonrpc.NewClient(url)
 	cid, err := c.Eth().ChainID()
 	if err != nil {
 		return nil, err
