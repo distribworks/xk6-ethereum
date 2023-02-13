@@ -20,7 +20,7 @@ func init() {
 	modules.Register("k6/x/ethereum/wallet", &wallet)
 }
 
-// Generate key creates a random key
+// GenerateKey key creates a random key
 func (w *Wallet) GenerateKey() (*Key, error) {
 	k, err := wallet.GenerateKey()
 	if err != nil {
