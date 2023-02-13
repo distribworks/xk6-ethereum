@@ -190,16 +190,12 @@ func (c *Client) WaitForTransactionReceipt(hash string) *goja.Promise {
 				// If we are testing vu is nil
 				if c.vu != nil {
 					// Report metrics
-					metrics.PushIfNotDone(c.vu.Context(), c.vu.State().Samples, metrics.ConnectedSamples{
-						Samples: []metrics.Sample{
-							{
-								TimeSeries: metrics.TimeSeries{
-									Metric: c.metrics.TimeToMine,
-								},
-								Value: float64(time.Since(now) / time.Millisecond),
-								Time:  time.Now(),
-							},
+					metrics.PushIfNotDone(c.vu.Context(), c.vu.State().Samples, metrics.Sample{
+						TimeSeries: metrics.TimeSeries{
+							Metric: c.metrics.TimeToMine,
 						},
+						Value: float64(time.Since(now) / time.Millisecond),
+						Time:  time.Now(),
 					})
 				}
 				resolve(receipt)
@@ -364,9 +360,11 @@ func (c *Client) pollForBlocks() {
 						{
 							TimeSeries: metrics.TimeSeries{
 								Metric: c.metrics.Block,
-								Tags: registry.RootTagSet().With("transactions", strconv.Itoa(len(block.TransactionsHashes))).
-									With("gas_used", strconv.Itoa(int(block.GasUsed))).
-									With("gas_limit", strconv.Itoa(int(block.GasLimit))),
+								Tags: registry.RootTagSet().WithTagsFromMap(map[string]string{
+									"transactions": strconv.Itoa(len(block.TransactionsHashes)),
+									"gas_used":     strconv.Itoa(int(block.GasUsed)),
+									"gas_limit":    strconv.Itoa(int(block.GasLimit)),
+								}),
 							},
 							Value: float64(blockNumber),
 							Time:  time.Now(),
