@@ -74,13 +74,15 @@ const client = new eth.Client({
 ```
 Transaction
 {
-  from:     string
-  to:       string
-  input:    object
-  gas_price: number
-  gas:      number
-  value:    number
-  nonce:    number
+  from:        string
+  to:          string
+  input:       object
+  gas_price:   number
+  gas_fee_cap: number
+  gas_tip_cap: number
+  gas:         number
+  value:       number
+  nonce:       number
   // eip-2930 values
   chain_id: number
 }
