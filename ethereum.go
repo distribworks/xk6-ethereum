@@ -114,13 +114,19 @@ func (c *Client) SendTransaction(tx Transaction) (string, error) {
 	}
 
 	t := &ethgo.Transaction{
-		From:                 ethgo.HexToAddress(tx.From),
-		To:                   &to,
-		Value:                big.NewInt(tx.Value),
-		Gas:                  tx.Gas,
-		GasPrice:             tx.GasPrice,
-		MaxFeePerGas:         big.NewInt(0).SetUint64(tx.GasFeeCap),
-		MaxPriorityFeePerGas: big.NewInt(0).SetUint64(tx.GasTipCap),
+		Type:     ethgo.TransactionLegacy,
+		From:     ethgo.HexToAddress(tx.From),
+		To:       &to,
+		Value:    big.NewInt(tx.Value),
+		Gas:      tx.Gas,
+		GasPrice: tx.GasPrice,
+	}
+
+	if tx.GasFeeCap > 0 || tx.GasTipCap > 0 {
+		t.Type = ethgo.TransactionDynamicFee
+		t.GasPrice = 0
+		t.MaxFeePerGas = big.NewInt(0).SetUint64(tx.GasFeeCap)
+		t.MaxPriorityFeePerGas = big.NewInt(0).SetUint64(tx.GasTipCap)
 	}
 
 	h, err := c.client.Eth().SendTransaction(t)
@@ -137,17 +143,22 @@ func (c *Client) SendRawTransaction(tx Transaction) (string, error) {
 	}
 
 	t := &ethgo.Transaction{
-		From:                 c.w.Address(),
-		To:                   &to,
-		Value:                big.NewInt(tx.Value),
-		Gas:                  gas,
-		GasPrice:             tx.GasPrice,
-		MaxFeePerGas:         big.NewInt(0).SetUint64(tx.GasFeeCap),
-		MaxPriorityFeePerGas: big.NewInt(0).SetUint64(tx.GasTipCap),
-		Nonce:                tx.Nonce,
-		Input:                tx.Input,
-		Type:                 ethgo.TransactionLegacy,
-		ChainID:              c.chainID,
+		Type:     ethgo.TransactionLegacy,
+		From:     c.w.Address(),
+		To:       &to,
+		Value:    big.NewInt(tx.Value),
+		Gas:      gas,
+		GasPrice: tx.GasPrice,
+		Nonce:    tx.Nonce,
+		Input:    tx.Input,
+		ChainID:  c.chainID,
+	}
+
+	if tx.GasFeeCap > 0 || tx.GasTipCap > 0 {
+		t.Type = ethgo.TransactionDynamicFee
+		t.GasPrice = 0
+		t.MaxFeePerGas = big.NewInt(0).SetUint64(tx.GasFeeCap)
+		t.MaxPriorityFeePerGas = big.NewInt(0).SetUint64(tx.GasTipCap)
 	}
 
 	s := wallet.NewEIP155Signer(t.ChainID.Uint64())
