@@ -193,6 +193,7 @@ func (c *Client) WaitForTransactionReceipt(hash string) *goja.Promise {
 					metrics.PushIfNotDone(c.vu.Context(), c.vu.State().Samples, metrics.Sample{
 						TimeSeries: metrics.TimeSeries{
 							Metric: c.metrics.TimeToMine,
+							Tags:   metrics.NewRegistry().RootTagSet(),
 						},
 						Value: float64(time.Since(now) / time.Millisecond),
 						Time:  time.Now(),
@@ -382,6 +383,7 @@ func (c *Client) pollForBlocks() {
 						{
 							TimeSeries: metrics.TimeSeries{
 								Metric: c.metrics.TPS,
+								Tags:   metrics.NewRegistry().RootTagSet(),
 							},
 							Value: tps,
 							Time:  time.Now(),
