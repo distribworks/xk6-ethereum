@@ -20,23 +20,18 @@ func (c *Contract) Call(method string, args ...interface{}) (map[string]interfac
 
 // Txn executes a transactions on the contract and waits for it to be mined
 // TODO maybe use promise
-func (c *Contract) Txn(method string, opts contract.TxnOpts, args ...interface{}) (*ethgo.Receipt, error) {
+func (c *Contract) Txn(method string, opts contract.TxnOpts, args ...interface{}) (string, error) {
 	txn, err := c.Contract.Txn(method, args...)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	txn.WithOpts(&opts)
 
 	err = txn.Do()
 	if err != nil {
-		return nil, fmt.Errorf("failed to send contract transaction: %w", err)
+		return "", fmt.Errorf("failed to send contract transaction: %w", err)
 	}
 
-	receipt, err := txn.Wait()
-	if err != nil {
-		return nil, fmt.Errorf("failed waiting for contract transaction: %w", err)
-	}
-
-	return receipt, nil
+	return txn.Hash().String(), nil
 }
