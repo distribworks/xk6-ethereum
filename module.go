@@ -38,7 +38,7 @@ func init() {
 	modules.Register("k6/x/ethereum", &EthRoot{})
 }
 
-// Eth is the root module
+// EthRoot is the root module
 type EthRoot struct{}
 
 // NewModuleInstance implements the modules.Module interface returning a new instance for each VU.

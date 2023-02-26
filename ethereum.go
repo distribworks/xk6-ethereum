@@ -20,13 +20,15 @@ import (
 )
 
 type Transaction struct {
-	From     string
-	To       string
-	Input    []byte
-	GasPrice uint64
-	Gas      uint64
-	Value    int64
-	Nonce    uint64
+	From      string
+	To        string
+	Input     []byte
+	GasPrice  uint64
+	GasFeeCap uint64
+	GasTipCap uint64
+	Gas       uint64
+	Value     int64
+	Nonce     uint64
 	// eip-2930 values
 	ChainId int64
 }
@@ -105,16 +107,25 @@ func (c *Client) SendTransaction(tx Transaction) (string, error) {
 	if tx.Gas == 0 {
 		tx.Gas = 21000
 	}
-	if tx.GasPrice == 0 {
+
+	if tx.GasPrice == 0 && tx.GasFeeCap == 0 && tx.GasTipCap == 0 {
 		tx.GasPrice = 5242880
 	}
 
 	t := &ethgo.Transaction{
+		Type:     ethgo.TransactionLegacy,
 		From:     ethgo.HexToAddress(tx.From),
 		To:       &to,
 		Value:    big.NewInt(tx.Value),
 		Gas:      tx.Gas,
 		GasPrice: tx.GasPrice,
+	}
+
+	if tx.GasFeeCap > 0 || tx.GasTipCap > 0 {
+		t.Type = ethgo.TransactionDynamicFee
+		t.GasPrice = 0
+		t.MaxFeePerGas = big.NewInt(0).SetUint64(tx.GasFeeCap)
+		t.MaxPriorityFeePerGas = big.NewInt(0).SetUint64(tx.GasTipCap)
 	}
 
 	h, err := c.client.Eth().SendTransaction(t)
@@ -131,6 +142,7 @@ func (c *Client) SendRawTransaction(tx Transaction) (string, error) {
 	}
 
 	t := &ethgo.Transaction{
+		Type:     ethgo.TransactionLegacy,
 		From:     c.w.Address(),
 		To:       &to,
 		Value:    big.NewInt(tx.Value),
@@ -138,8 +150,14 @@ func (c *Client) SendRawTransaction(tx Transaction) (string, error) {
 		GasPrice: tx.GasPrice,
 		Nonce:    tx.Nonce,
 		Input:    tx.Input,
-		Type:     ethgo.TransactionLegacy,
 		ChainID:  c.chainID,
+	}
+
+	if tx.GasFeeCap > 0 || tx.GasTipCap > 0 {
+		t.Type = ethgo.TransactionDynamicFee
+		t.GasPrice = 0
+		t.MaxFeePerGas = big.NewInt(0).SetUint64(tx.GasFeeCap)
+		t.MaxPriorityFeePerGas = big.NewInt(0).SetUint64(tx.GasTipCap)
 	}
 
 	s := wallet.NewEIP155Signer(t.ChainID.Uint64())
@@ -223,7 +241,7 @@ func (c *Client) Accounts() ([]string, error) {
 	return addresses, nil
 }
 
-// NewConstract creates a new contract instance with the given ABI.
+// NewContract creates a new contract instance with the given ABI.
 func (c *Client) NewContract(address string, abistr string) (*Contract, error) {
 	contractABI, err := abi.NewABI(abistr)
 	if err != nil {
