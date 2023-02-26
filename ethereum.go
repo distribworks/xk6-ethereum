@@ -2,7 +2,6 @@
 package ethereum
 
 import (
-	"context"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -249,9 +248,6 @@ func (c *Client) NewContract(address string, abistr string) (*Contract, error) {
 
 // DeployContract deploys a contract to the blockchain.
 func (c *Client) DeployContract(abistr string, bytecode string, args ...interface{}) (*ethgo.Receipt, error) {
-	//promise, resolve, reject := c.makeHandledPromise()
-
-	//go (func() {
 	// Parse ABI
 	contractABI, err := abi.NewABI(abistr)
 	if err != nil {
@@ -287,8 +283,6 @@ func (c *Client) DeployContract(abistr string, bytecode string, args ...interfac
 	if err != nil {
 		return nil, fmt.Errorf("failed waiting to deploy contract: %w", err)
 	}
-	//resolve(receipt)
-	//})()
 
 	return receipt, nil
 }
@@ -356,7 +350,7 @@ func (c *Client) pollForBlocks() {
 
 			if c.vu != nil || c.vu.Context() != nil {
 				registry := metrics.NewRegistry()
-				metrics.PushIfNotDone(context.Background(), c.vu.State().Samples, metrics.ConnectedSamples{
+				metrics.PushIfNotDone(c.vu.Context(), c.vu.State().Samples, metrics.ConnectedSamples{
 					Samples: []metrics.Sample{
 						{
 							TimeSeries: metrics.TimeSeries{
