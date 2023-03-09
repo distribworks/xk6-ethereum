@@ -43,14 +43,9 @@ type EthRoot struct{}
 
 // NewModuleInstance implements the modules.Module interface returning a new instance for each VU.
 func (*EthRoot) NewModuleInstance(vu modules.VU) modules.Instance {
-	m, err := registerMetrics(vu)
-	if err != nil {
-		common.Throw(vu.Runtime(), err)
-	}
-
 	return &ModuleInstance{
 		vu: vu,
-		m:  m,
+		m:  registerMetrics(vu),
 	}
 }
 
@@ -127,6 +122,7 @@ func (mi *ModuleInstance) NewClient(call goja.ConstructorCall) *goja.Object {
 		chainID: cid,
 	}
 
+	mi.vu.RegisterCallback()
 	if mi.vu != nil && mi.vu.Context() != nil && mi.vu.State() != nil {
 		if _, ok := endpoints[opts.URL]; !ok {
 			logrus.Infof("Gathering metrics for endpoint %s", opts.URL)
@@ -140,7 +136,7 @@ func (mi *ModuleInstance) NewClient(call goja.ConstructorCall) *goja.Object {
 	return rt.ToValue(client).ToObject(rt)
 }
 
-func registerMetrics(vu modules.VU) (ethMetrics, error) {
+func registerMetrics(vu modules.VU) ethMetrics {
 	registry := vu.InitEnv().Registry
 	m := ethMetrics{
 		RequestDuration: registry.MustNewMetric("ethereum_req_duration", metrics.Trend, metrics.Time),
@@ -151,7 +147,7 @@ func registerMetrics(vu modules.VU) (ethMetrics, error) {
 		BlockTime:       registry.MustNewMetric("ethereum_block_time", metrics.Trend, metrics.Time),
 	}
 
-	return m, nil
+	return m
 }
 
 func (c *Client) reportMetricsFromStats(call string, t time.Duration) {
