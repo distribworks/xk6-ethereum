@@ -2,7 +2,6 @@
 package ethereum
 
 import (
-	"context"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -338,7 +337,7 @@ func (c *Client) pollForBlocks() {
 
 	now := time.Now()
 
-	for {
+	for range time.Tick(500 * time.Millisecond) {
 		blockNumber, err := c.BlockNumber()
 		if err != nil {
 			panic(err)
@@ -369,7 +368,7 @@ func (c *Client) pollForBlocks() {
 
 			rootTS := metrics.NewRegistry().RootTagSet()
 			if c.vu != nil || c.vu.Context() != nil || rootTS != nil {
-				metrics.PushIfNotDone(context.Background(), c.vu.State().Samples, metrics.ConnectedSamples{
+				metrics.PushIfNotDone(c.vu.Context(), c.vu.State().Samples, metrics.ConnectedSamples{
 					Samples: []metrics.Sample{
 						{
 							TimeSeries: metrics.TimeSeries{
@@ -415,7 +414,5 @@ func (c *Client) pollForBlocks() {
 				})
 			}
 		}
-
-		time.Sleep(500 * time.Millisecond)
 	}
 }
