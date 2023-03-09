@@ -141,33 +141,14 @@ func (mi *ModuleInstance) NewClient(call goja.ConstructorCall) *goja.Object {
 }
 
 func registerMetrics(vu modules.VU) (ethMetrics, error) {
-	var err error
 	registry := vu.InitEnv().Registry
-	m := ethMetrics{}
-
-	m.RequestDuration, err = registry.NewMetric("ethereum_req_duration", metrics.Trend, metrics.Time)
-	if err != nil {
-		return m, err
-	}
-	m.TimeToMine, err = registry.NewMetric("ethereum_time_to_mine", metrics.Trend, metrics.Time)
-	if err != nil {
-		return m, err
-	}
-	m.Block, err = registry.NewMetric("ethereum_block", metrics.Counter, metrics.Default)
-	if err != nil {
-		return m, err
-	}
-	m.GasUsed, err = registry.NewMetric("ethereum_gas_used", metrics.Trend, metrics.Default)
-	if err != nil {
-		return m, err
-	}
-	m.TPS, err = registry.NewMetric("ethereum_tps", metrics.Trend, metrics.Default)
-	if err != nil {
-		return m, err
-	}
-	m.BlockTime, err = registry.NewMetric("ethereum_block_time", metrics.Trend, metrics.Time)
-	if err != nil {
-		return m, err
+	m := ethMetrics{
+		RequestDuration: registry.MustNewMetric("ethereum_req_duration", metrics.Trend, metrics.Time),
+		TimeToMine:      registry.MustNewMetric("ethereum_time_to_mine", metrics.Trend, metrics.Time),
+		Block:           registry.MustNewMetric("ethereum_block", metrics.Counter, metrics.Default),
+		GasUsed:         registry.MustNewMetric("ethereum_gas_used", metrics.Trend, metrics.Default),
+		TPS:             registry.MustNewMetric("ethereum_tps", metrics.Trend, metrics.Default),
+		BlockTime:       registry.MustNewMetric("ethereum_block_time", metrics.Trend, metrics.Time),
 	}
 
 	return m, nil
