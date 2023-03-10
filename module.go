@@ -7,11 +7,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/dop251/goja"
-	"github.com/sirupsen/logrus"
 	"github.com/umbracle/ethgo/jsonrpc"
 	"github.com/umbracle/ethgo/wallet"
 	"go.k6.io/k6/js/common"
@@ -22,8 +20,6 @@ import (
 const (
 	privateKey = "42b6e34dc21598a807dc19d7784c71b2a7a01f6480dc6f58258f78e539f1a1fa"
 )
-
-var once sync.Once
 
 type ethMetrics struct {
 	RequestDuration *metrics.Metric
@@ -60,8 +56,6 @@ func (mi *ModuleInstance) Exports() modules.Exports {
 		"Client": mi.NewClient,
 	}}
 }
-
-var endpoints = map[string]bool{}
 
 func (mi *ModuleInstance) NewClient(call goja.ConstructorCall) *goja.Object {
 	rt := mi.vu.Runtime()
@@ -120,18 +114,10 @@ func (mi *ModuleInstance) NewClient(call goja.ConstructorCall) *goja.Object {
 		client:  c,
 		w:       wa,
 		chainID: cid,
+		opts:    opts,
 	}
 
-	mi.vu.RegisterCallback()
-	if mi.vu != nil && mi.vu.Context() != nil && mi.vu.State() != nil {
-		if _, ok := endpoints[opts.URL]; !ok {
-			logrus.Infof("Gathering metrics for endpoint %s", opts.URL)
-			mutex.Lock()
-			endpoints[opts.URL] = true
-			mutex.Unlock()
-			go client.pollForBlocks()
-		}
-	}
+	go client.pollForBlocks()
 
 	return rt.ToValue(client).ToObject(rt)
 }
