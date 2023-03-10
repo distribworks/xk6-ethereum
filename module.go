@@ -7,11 +7,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/dop251/goja"
-	"github.com/sirupsen/logrus"
 	"github.com/umbracle/ethgo/jsonrpc"
 	"github.com/umbracle/ethgo/wallet"
 	"go.k6.io/k6/js/common"
@@ -22,8 +20,6 @@ import (
 const (
 	privateKey = "42b6e34dc21598a807dc19d7784c71b2a7a01f6480dc6f58258f78e539f1a1fa"
 )
-
-var once sync.Once
 
 type ethMetrics struct {
 	RequestDuration *metrics.Metric
@@ -43,14 +39,9 @@ type EthRoot struct{}
 
 // NewModuleInstance implements the modules.Module interface returning a new instance for each VU.
 func (*EthRoot) NewModuleInstance(vu modules.VU) modules.Instance {
-	m, err := registerMetrics(vu)
-	if err != nil {
-		common.Throw(vu.Runtime(), err)
-	}
-
 	return &ModuleInstance{
 		vu: vu,
-		m:  m,
+		m:  registerMetrics(vu),
 	}
 }
 
@@ -65,8 +56,6 @@ func (mi *ModuleInstance) Exports() modules.Exports {
 		"Client": mi.NewClient,
 	}}
 }
-
-var endpoints = map[string]bool{}
 
 func (mi *ModuleInstance) NewClient(call goja.ConstructorCall) *goja.Object {
 	rt := mi.vu.Runtime()
@@ -125,52 +114,26 @@ func (mi *ModuleInstance) NewClient(call goja.ConstructorCall) *goja.Object {
 		client:  c,
 		w:       wa,
 		chainID: cid,
+		opts:    opts,
 	}
 
-	if mi.vu != nil && mi.vu.Context() != nil && mi.vu.State() != nil {
-		if _, ok := endpoints[opts.URL]; !ok {
-			logrus.Infof("Gathering metrics for endpoint %s", opts.URL)
-			mutex.Lock()
-			endpoints[opts.URL] = true
-			mutex.Unlock()
-			go client.pollForBlocks()
-		}
-	}
+	go client.pollForBlocks()
 
 	return rt.ToValue(client).ToObject(rt)
 }
 
-func registerMetrics(vu modules.VU) (ethMetrics, error) {
-	var err error
+func registerMetrics(vu modules.VU) ethMetrics {
 	registry := vu.InitEnv().Registry
-	m := ethMetrics{}
-
-	m.RequestDuration, err = registry.NewMetric("ethereum_req_duration", metrics.Trend, metrics.Time)
-	if err != nil {
-		return m, err
-	}
-	m.TimeToMine, err = registry.NewMetric("ethereum_time_to_mine", metrics.Trend, metrics.Time)
-	if err != nil {
-		return m, err
-	}
-	m.Block, err = registry.NewMetric("ethereum_block", metrics.Counter, metrics.Default)
-	if err != nil {
-		return m, err
-	}
-	m.GasUsed, err = registry.NewMetric("ethereum_gas_used", metrics.Trend, metrics.Default)
-	if err != nil {
-		return m, err
-	}
-	m.TPS, err = registry.NewMetric("ethereum_tps", metrics.Trend, metrics.Default)
-	if err != nil {
-		return m, err
-	}
-	m.BlockTime, err = registry.NewMetric("ethereum_block_time", metrics.Trend, metrics.Time)
-	if err != nil {
-		return m, err
+	m := ethMetrics{
+		RequestDuration: registry.MustNewMetric("ethereum_req_duration", metrics.Trend, metrics.Time),
+		TimeToMine:      registry.MustNewMetric("ethereum_time_to_mine", metrics.Trend, metrics.Time),
+		Block:           registry.MustNewMetric("ethereum_block", metrics.Counter, metrics.Default),
+		GasUsed:         registry.MustNewMetric("ethereum_gas_used", metrics.Trend, metrics.Default),
+		TPS:             registry.MustNewMetric("ethereum_tps", metrics.Trend, metrics.Default),
+		BlockTime:       registry.MustNewMetric("ethereum_block_time", metrics.Trend, metrics.Time),
 	}
 
-	return m, nil
+	return m
 }
 
 func (c *Client) reportMetricsFromStats(call string, t time.Duration) {

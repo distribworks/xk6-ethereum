@@ -39,6 +39,7 @@ type Client struct {
 	chainID *big.Int
 	vu      modules.VU
 	metrics ethMetrics
+	opts    *options
 }
 
 func (c *Client) Exports() modules.Exports {
@@ -328,7 +329,7 @@ func (c *Client) makeHandledPromise() (*goja.Promise, func(interface{}), func(in
 		}
 }
 
-var mutex = sync.Mutex{}
+var blocks sync.Map
 
 // PollBlocks polls for new blocks and emits a "block" metric.
 func (c *Client) pollForBlocks() {
@@ -367,7 +368,12 @@ func (c *Client) pollForBlocks() {
 			prevBlock = block
 
 			rootTS := metrics.NewRegistry().RootTagSet()
-			if c.vu != nil || c.vu.Context() != nil || rootTS != nil {
+			if c.vu != nil || c.vu.State() != nil || rootTS != nil {
+				if _, loaded := blocks.LoadOrStore(c.opts.URL+strconv.FormatUint(blockNumber, 10), true); loaded {
+					// We already have a block number for this client, so we can skip this
+					continue
+				}
+
 				metrics.PushIfNotDone(c.vu.Context(), c.vu.State().Samples, metrics.ConnectedSamples{
 					Samples: []metrics.Sample{
 						{
