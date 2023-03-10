@@ -362,10 +362,12 @@ func (c *Client) pollForBlocks() {
 			var blockTimestampDiff time.Duration
 			var tps float64
 
-			// compute block time
-			blockTimestampDiff = time.Unix(int64(block.Timestamp), 0).Sub(time.Unix(int64(prevBlock.Timestamp), 0))
-			// Compute TPS
-			tps = float64(len(block.TransactionsHashes)) / float64(blockTimestampDiff.Seconds())
+			if prevBlock != nil {
+				// compute block time
+				blockTimestampDiff = time.Unix(int64(block.Timestamp), 0).Sub(time.Unix(int64(prevBlock.Timestamp), 0))
+				// Compute TPS
+				tps = float64(len(block.TransactionsHashes)) / float64(blockTimestampDiff.Seconds())
+			}
 
 			prevBlock = block
 
