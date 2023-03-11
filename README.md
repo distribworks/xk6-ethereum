@@ -8,6 +8,19 @@ A k6 extension to interact with EVM based blockchains.
 
 2. Check the examples folder to learn how to use it
 
+3. Visualize metrics in [Grafana](#Dashboards)
+
+## Dashboards
+
+You can visualize benchmark results in your local machines using the provided Grafana + InfluxDB instance:
+
+```
+docker-compose up -d
+xk6 run --out influxdb=http://localhost:8086/blockspeed examples/multiple.js
+```
+
+Navigate to [http://localhost:3000/d/BuduMUd4k/blockspeed?orgId=1](http://localhost:3000/d/BuduMUd4k/blockspeed?orgId=1)
+
 ## Build
 
 To build a `k6` binary with this plugin, first ensure you have the prerequisites:
