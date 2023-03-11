@@ -8,9 +8,7 @@ A k6 extension to interact with EVM based blockchains.
 
 2. Check the examples folder to learn how to use it
 
-3. Visualize metrics in [Grafana](#Dashboards)
-
-## Dashboards
+## Visualize and Run
 
 You can visualize benchmark results in your local machines using the provided Grafana + InfluxDB instance:
 
