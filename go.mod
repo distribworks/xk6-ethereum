@@ -1,6 +1,6 @@
 module github.com/distribworks/xk6-ethereum
 
-go 1.19
+go 1.20
 
 require (
 	github.com/dop251/goja v0.0.0-20230531210528-d7324b2d74f7
