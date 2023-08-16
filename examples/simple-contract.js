@@ -19,15 +19,15 @@ export function setup() {
   return data;
 }
 
-var nonce = 0;
-
 // VU client
 export default function (data) {
   console.log(JSON.stringify(data));
+  data.nonce++;
 
   const con = client.newContract(data.contract_address, contract_abi);
-  const res = con.txn("burnGas", 10);
+  const res = con.txn("burnGas", { nonce: data.nonce }, 10);
   console.log(`txn hash => ${res.transaction_hash}`);
   console.log(`gas used => ${res.gas_used}`);
   console.log(JSON.stringify(con.call("getTotal")));
+
 }

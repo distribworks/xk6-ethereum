@@ -1,4 +1,6 @@
 import eth from 'k6/x/ethereum';
+import "@ethersproject/shims";
+import * as ethers from "ethers";
 
 let rpc_url = __ENV.RCP_URL
 if (rpc_url == undefined) {
@@ -18,8 +20,15 @@ export default function (data) {
     // mnemonic: 'my mnemonic'
   });
 
+  // To connect to a custom URL:
+  let client2 = new ethers.providers.JsonRpcProvider(rpc_url);
+
+  client2.getBlockNumber().then((blockNumber) => {
+    console.log("blockNumber => " + blockNumber);
+  });
+
   let prev_nonce = client.getNonce(root_address);
-  if (nonce < prev_nonce) {
+  if (nonce < prev_nonce) {1
     nonce = prev_nonce;
   }
 
@@ -27,7 +36,8 @@ export default function (data) {
   const gas = client.gasPrice();
   console.log(`gas price => ${gas}`);
 
-  const bal = client.getBalance(root_address, client.blockNumber());
+  // const bal = client.getBalance(root_address, client.blockNumber());
+  const bal = ethers.utils.formatEther(balance);
   console.log(`bal => ${bal}`);
   
   const tx = {
