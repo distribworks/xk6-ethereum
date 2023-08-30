@@ -292,6 +292,8 @@ go.k6.io/k6 v0.43.1 h1:5VgFqPhZQF1oEUM+9LJ1t54YJTSHNU4vLx5YEuOwCSo=
 go.k6.io/k6 v0.43.1/go.mod h1:eViUvOYYvW9ckMoQDv4qvOVhwrYFqhUm1i+PK/VFBmI=
 go.k6.io/k6 v0.45.0 h1:cXFQi0GuHCl0YcI2bl5NWne6J2qRU23E/R/YoqDmcD8=
 go.k6.io/k6 v0.45.0/go.mod h1:8RMnULVviBhE6vbrnNoc9yq9mXvniXrJaLEP0OqGki0=
+go.k6.io/k6 v0.45.1 h1:z+iVxE7Qze2Ka8tKvnjerOsoTuQb8e27Vqd1wcG2IFI=
+go.k6.io/k6 v0.45.1/go.mod h1:SBO/sqx6h/a0lJqEioMEpneb6zULogIyDmz+ufFqtIE=
 go.opencensus.io v0.21.0/go.mod h1:mSImk1erAIZhrmZN+AvHh14ztQfjbGwt4TtuofqLduU=
 go.opencensus.io v0.22.0/go.mod h1:+kGneAE2xo2IficOXnaByMWTGM9T73dGwxeWcUqIpI8=
 go.opencensus.io v0.22.2/go.mod h1:yxeiOL68Rb0Xd1ddK5vPZ/oVn4vY4Ynel7k9FzqtOIw=
@@ -631,6 +633,7 @@ google.golang.org/protobuf v1.26.0/go.mod h1:9q0QmTI4eRPtz6boOQmLYwt+qCgq0jsYwAQ
 google.golang.org/protobuf v1.29.0 h1:44S3JjaKmLEE4YIkjzexaP+NzZsudE3Zin5Njn/pYX0=
 google.golang.org/protobuf v1.29.0/go.mod h1:HV8QOd/L58Z+nl8r43ehVNZIU/HEI6OcFqwMG9pJV4I=
 google.golang.org/protobuf v1.30.0/go.mod h1:HV8QOd/L58Z+nl8r43ehVNZIU/HEI6OcFqwMG9pJV4I=
+google.golang.org/protobuf v1.31.0/go.mod h1:HV8QOd/L58Z+nl8r43ehVNZIU/HEI6OcFqwMG9pJV4I=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c h1:Hei/4ADfdWqJk1ZMxUNpqntNwaWcugrBjAiHlqqRiVk=

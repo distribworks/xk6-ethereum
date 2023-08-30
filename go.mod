@@ -6,7 +6,7 @@ require (
 	github.com/dop251/goja v0.0.0-20230531210528-d7324b2d74f7
 	github.com/stretchr/testify v1.8.2
 	github.com/umbracle/ethgo v0.1.4-0.20230620065855-8aa9d5b509da
-	go.k6.io/k6 v0.45.0
+	go.k6.io/k6 v0.45.1
 )
 
 require (
@@ -47,7 +47,7 @@ require (
 	golang.org/x/time v0.3.0 // indirect
 	google.golang.org/genproto v0.0.0-20230306155012-7f2fa6fef1f4 // indirect
 	google.golang.org/grpc v1.55.0 // indirect
-	google.golang.org/protobuf v1.30.0 // indirect
+	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/guregu/null.v3 v3.5.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
