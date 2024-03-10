@@ -372,7 +372,7 @@ func (c *Client) pollForBlocks() {
 			prevBlock = block
 
 			rootTS := metrics.NewRegistry().RootTagSet()
-			if c.vu != nil || c.vu.State() != nil || rootTS != nil {
+			if c.vu != nil && c.vu.State() != nil && rootTS != nil {
 				if _, loaded := blocks.LoadOrStore(c.opts.URL+strconv.FormatUint(blockNumber, 10), true); loaded {
 					// We already have a block number for this client, so we can skip this
 					continue
