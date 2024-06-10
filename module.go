@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/dop251/goja"
+	"github.com/grafana/sobek"
 	"github.com/umbracle/ethgo/jsonrpc"
 	"github.com/umbracle/ethgo/wallet"
 	"go.k6.io/k6/js/common"
@@ -57,7 +57,7 @@ func (mi *ModuleInstance) Exports() modules.Exports {
 	}}
 }
 
-func (mi *ModuleInstance) NewClient(call goja.ConstructorCall) *goja.Object {
+func (mi *ModuleInstance) NewClient(call sobek.ConstructorCall) *sobek.Object {
 	rt := mi.vu.Runtime()
 
 	var optionsArg map[string]interface{}
