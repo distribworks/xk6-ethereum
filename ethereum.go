@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dop251/goja"
+	"github.com/grafana/sobek"
 	"github.com/umbracle/ethgo"
 	"github.com/umbracle/ethgo/abi"
 	"github.com/umbracle/ethgo/contract"
@@ -191,7 +191,7 @@ func (c *Client) GetTransactionReceipt(hash string) (*ethgo.Receipt, error) {
 }
 
 // WaitForTransactionReceipt waits for the transaction receipt for the given transaction hash.
-func (c *Client) WaitForTransactionReceipt(hash string) *goja.Promise {
+func (c *Client) WaitForTransactionReceipt(hash string) *sobek.Promise {
 	promise, resolve, reject := c.makeHandledPromise()
 	now := time.Now()
 
@@ -309,7 +309,7 @@ func (c *Client) DeployContract(abistr string, bytecode string, args ...interfac
 // makeHandledPromise will create a promise and return its resolve and reject methods,
 // wrapped in such a way that it will block the eventloop from exiting before they are
 // called even if the promise isn't resolved by the time the current script ends executing.
-func (c *Client) makeHandledPromise() (*goja.Promise, func(interface{}), func(interface{})) {
+func (c *Client) makeHandledPromise() (*sobek.Promise, func(interface{}), func(interface{})) {
 	runtime := c.vu.Runtime()
 	callback := c.vu.RegisterCallback()
 	p, resolve, reject := runtime.NewPromise()
