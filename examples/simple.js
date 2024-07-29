@@ -2,18 +2,18 @@ import eth from 'k6/x/ethereum';
 
 let rpc_url = __ENV.RCP_URL
 if (rpc_url == undefined) {
-  rpc_url = "http://localhost:10002"
+  rpc_url = "http://localhost:8545"
 }
 
 // You can use an existing premined account
-const root_address = "0x85da99c8a7c2c95964c8efd687e95e632fc533d6"
+const root_address = "0x67b1d87101671b127f5f8714789C7192f7ad340e"
 let nonce = 0;
 
 export default function (data) {
   const client = new eth.Client({
     url: rpc_url,
     // You can also specify a private key here
-    // privateKey: 'private key of your account',
+    privateKey: '26e86e45f6fc45ec6e2ecd128cec80fa1d1505e5507dcd2ae58c3130a7a97b48',
     // or a mnemonic
     // mnemonic: 'my mnemonic'
   });
